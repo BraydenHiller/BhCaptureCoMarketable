@@ -34,3 +34,12 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+# bhcaptureco-marketable
+
+## Environment
+- Copy .env.example to .env for local development.
+- Locally required variables:
+  - DATABASE_URL (required locally; optional in CI)
+  - NEXT_PUBLIC_APP_URL (defaults to http://localhost:3000)
+  - APP_ENV (defaults to local)
