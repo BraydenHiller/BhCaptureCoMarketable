@@ -15,7 +15,7 @@ async function createGallery(formData: FormData) {
 }
 
 export default async function Page() {
-	return await withTenantRequestScope(async (tenantId) => {
+	return await withTenantRequestScope(async () => {
 		return (
 			<div className="space-y-4">
 				<h1 className="text-2xl font-bold">Create Gallery</h1>
