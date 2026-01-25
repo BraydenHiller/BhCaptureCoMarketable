@@ -1,4 +1,5 @@
 import "server-only";
+import Link from 'next/link';
 import { withTenantRequestScope } from "@/lib/withTenantRequestScope";
 import { getRequestHost } from "@/lib/tenantRequest";
 import { getScopedTenantId } from "@/lib/requestScope";
@@ -16,7 +17,12 @@ export default async function Page() {
 
 		return (
 			<div className="space-y-4">
-				<h1 className="text-2xl font-bold">Galleries</h1>
+				<div className="flex justify-between items-center">
+					<h1 className="text-2xl font-bold">Galleries</h1>
+					<Link href="/galleries/new" className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+						New Gallery
+					</Link>
+				</div>
 				<div className="text-sm text-gray-600 space-y-1">
 					<p><strong>Host:</strong> {host ?? 'N/A'}</p>
 					<p><strong>Tenant (callback):</strong> {tenantId}</p>
