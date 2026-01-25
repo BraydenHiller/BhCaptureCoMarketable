@@ -73,7 +73,29 @@ model Gallery {
   tenantId  String
   name      String
   createdAt DateTime @default(now())
+  photos    Photo[]
 
   @@index([tenantId])
+  @@index([tenantId, createdAt])
+}
+
+model Photo {
+  id                String   @id @default(cuid())
+  tenantId          String
+  galleryId         String
+  storageKey        String?
+  originalFilename  String?
+  mimeType          String?
+  bytes             Int?
+  width             Int?
+  height            Int?
+  altText           String?
+  caption           String?
+  sortOrder         Int      @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  gallery           Gallery  @relation(fields: [galleryId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, galleryId])
   @@index([tenantId, createdAt])
 }
