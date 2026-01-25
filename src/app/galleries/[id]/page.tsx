@@ -37,7 +37,12 @@ export default async function Page({ params }: { params: { id: string } }) {
 					</form>
 				</div>
 				<div>
-					<h2 className="text-xl font-semibold">Photos</h2>
+					<div className="flex justify-between items-center">
+						<h2 className="text-xl font-semibold">Photos</h2>
+						<Link href={`/galleries/${gallery.id}/photos/new`} className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
+							Add Photo
+						</Link>
+					</div>
 					{photos.length === 0 ? (
 						<p>No photos yet.</p>
 					) : (
@@ -47,6 +52,14 @@ export default async function Page({ params }: { params: { id: string } }) {
 									<p><strong>Alt:</strong> {photo.altText || 'N/A'}</p>
 									<p><strong>Caption:</strong> {photo.caption || 'N/A'}</p>
 									<p><strong>Sort:</strong> {photo.sortOrder}</p>
+									<div className="flex space-x-2 mt-2">
+										<Link href={`/galleries/${gallery.id}/photos/${photo.id}/edit`} className="text-blue-500 hover:underline">
+											Edit
+										</Link>
+										<Link href={`/galleries/${gallery.id}/photos/${photo.id}/delete`} className="text-red-500 hover:underline">
+											Delete
+										</Link>
+									</div>
 								</div>
 							))}
 						</div>
