@@ -1,5 +1,7 @@
 import "server-only";
 import { withTenantRequestScope } from "@/lib/withTenantRequestScope";
+import { getRequestDb } from "@/db/requestDb";
+import { requireScopedTenantId } from "@/lib/requestScope";
 import { getPhoto, updatePhoto } from "@/db/photo";
 import { notFound, redirect } from "next/navigation";
 
@@ -15,6 +17,14 @@ async function updatePhotoAction(photoId: string, formData: FormData) {
 export default async function Page({ params }: { params: Promise<{ id: string; photoId: string }> }) {
 	return await withTenantRequestScope(async () => {
 		const { id, photoId } = await params;
+		const db = getRequestDb();
+		const tenantId = requireScopedTenantId();
+		const gallery = await db.gallery.findUnique({
+			where: { id, tenantId },
+		});
+		if (!gallery) {
+			notFound();
+		}
 		const photo = await getPhoto(photoId);
 		if (!photo) notFound();
 
