@@ -34,7 +34,9 @@ export default async function Page() {
 					<ul className="space-y-2">
 						{galleries.map((gallery) => (
 							<li key={gallery.id} className="border p-2 rounded">
-								{gallery.name} - {gallery.createdAt.toLocaleString()}
+								<Link href={`/galleries/${gallery.id}`} className="text-blue-500 hover:underline">
+									{gallery.name}
+								</Link> - {gallery.createdAt.toLocaleString()}
 							</li>
 						))}
 					</ul>
