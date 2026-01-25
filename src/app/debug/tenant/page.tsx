@@ -2,6 +2,8 @@ import 'server-only';
 import { headers } from 'next/headers';
 import { getRequestHost, getRequestTenantId } from '@/lib/tenantRequest';
 
+export const dynamic = 'force-dynamic';
+
 export default async function Page() {
 	const h = await headers();
 	const xfh = h.get('x-forwarded-host') ?? null;
