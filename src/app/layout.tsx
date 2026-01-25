@@ -26,6 +26,12 @@ export default function RootLayout({
                 >
                   Tenant
                 </Link>
+                <Link
+                  href="/galleries"
+                  className="text-gray-700 hover:text-gray-900"
+                >
+                  Galleries
+                </Link>
               </nav>
             </div>
           </div>
