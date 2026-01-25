@@ -1,6 +1,8 @@
 import "server-only";
 import Link from 'next/link';
 import { withTenantRequestScope } from "@/lib/withTenantRequestScope";
+import { getRequestDb } from "@/db/requestDb";
+import { requireScopedTenantId } from "@/lib/requestScope";
 import { getPhoto, deletePhoto } from "@/db/photo";
 import { notFound, redirect } from "next/navigation";
 
@@ -13,6 +15,14 @@ async function deletePhotoAction(galleryId: string, photoId: string) {
 export default async function Page({ params }: { params: Promise<{ id: string; photoId: string }> }) {
 	return await withTenantRequestScope(async () => {
 		const { id, photoId } = await params;
+		const db = getRequestDb();
+		const tenantId = requireScopedTenantId();
+		const gallery = await db.gallery.findUnique({
+			where: { id, tenantId },
+		});
+		if (!gallery) {
+			notFound();
+		}
 		const photo = await getPhoto(photoId);
 		if (!photo) notFound();
 
