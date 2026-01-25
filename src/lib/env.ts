@@ -28,3 +28,9 @@ export const env = {
 	...parsedServer,
 	...parsedClient,
 };
+
+const envSchema = z.object({
+	APP_ENV: z.string().default('local'),
+	DATABASE_URL: z.string().nonempty(),
+	NEXT_PUBLIC_APP_URL: z.string().url().default('http://localhost:3000'),
+});
