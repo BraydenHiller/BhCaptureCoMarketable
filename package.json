@@ -9,16 +9,19 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@prisma/client": "^7.3.0",
     "next": "16.1.4",
+    "pg": "^8.17.2",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@prisma/adapter-pg": "^7.3.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
