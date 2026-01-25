@@ -9,9 +9,7 @@ const connectionString = process.env.DATABASE_URL;
 const adapter = new PrismaPg({ connectionString });
 
 declare global {
-	interface GlobalThis {
-		__prisma?: PrismaClient;
-	}
+	var __prisma: PrismaClient | undefined;
 }
 
 const client = globalThis.__prisma ?? new PrismaClient({ adapter });
