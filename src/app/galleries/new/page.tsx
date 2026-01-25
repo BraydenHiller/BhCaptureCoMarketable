@@ -19,7 +19,6 @@ export default async function Page() {
 		return (
 			<div className="space-y-4">
 				<h1 className="text-2xl font-bold">Create Gallery</h1>
-				<p className="text-sm text-gray-600">Tenant: {tenantId}</p>
 				<form action={createGallery} className="space-y-4">
 					<div>
 						<label htmlFor="name" className="block text-sm font-medium text-gray-700">Name</label>
