@@ -4,6 +4,7 @@ import { withTenantRequestScope } from "@/lib/withTenantRequestScope";
 import { getRequestDb } from "@/db/requestDb";
 import { requireScopedTenantId } from "@/lib/requestScope";
 import { notFound } from "next/navigation";
+import { listPhotos } from "@/db/photo";
 
 export default async function Page({ params }: { params: { id: string } }) {
 	return await withTenantRequestScope(async () => {
@@ -17,6 +18,8 @@ export default async function Page({ params }: { params: { id: string } }) {
 		if (!gallery) {
 			notFound();
 		}
+
+		const photos = await listPhotos(gallery.id);
 
 		return (
 			<div className="space-y-4">
@@ -32,6 +35,22 @@ export default async function Page({ params }: { params: { id: string } }) {
 							Delete
 						</button>
 					</form>
+				</div>
+				<div>
+					<h2 className="text-xl font-semibold">Photos</h2>
+					{photos.length === 0 ? (
+						<p>No photos yet.</p>
+					) : (
+						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
+							{photos.map((photo) => (
+								<div key={photo.id} className="border p-4 rounded">
+									<p><strong>Alt:</strong> {photo.altText || 'N/A'}</p>
+									<p><strong>Caption:</strong> {photo.caption || 'N/A'}</p>
+									<p><strong>Sort:</strong> {photo.sortOrder}</p>
+								</div>
+							))}
+						</div>
+					)}
 				</div>
 			</div>
 		);
