@@ -67,3 +67,13 @@ model AuditLog {
   @@index([tenantId, createdAt])
   @@index([actorId, createdAt])
 }
+
+model Gallery {
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  createdAt DateTime @default(now())
+
+  @@index([tenantId])
+  @@index([tenantId, createdAt])
+}
