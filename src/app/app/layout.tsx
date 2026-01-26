@@ -1,5 +1,5 @@
-import { requireRequestTenantId } from '@/lib/tenantRequest';
 import { getSession } from '@/lib/auth/session';
+import { runWithTenantScope } from '@/lib/requestScope';
 import { redirect } from 'next/navigation';
 
 export default async function AppLayout({
@@ -7,15 +7,22 @@ export default async function AppLayout({
 }: {
 	children: React.ReactNode;
 }) {
-	// Enforce tenant context for all /app/** routes
-	// Throws error with message like "Tenant required for host: <hostname>" if tenant cannot be resolved
-	await requireRequestTenantId();
-
-	// Require authenticated tenant session
+	// Get authenticated session
 	const session = await getSession();
+
+	// Require TENANT role
 	if (!session || session.role !== 'TENANT') {
 		redirect('/login');
 	}
 
-	return <>{children}</>;
+	// Require tenantId in session
+	if (!session.tenantId) {
+		redirect('/login');
+	}
+
+	// Establish request-scoped tenant context from session
+	// This injects tenantId into the request scope for all child pages/components
+	return runWithTenantScope(session.tenantId, () => (
+		<>{children}</>
+	));
 }
