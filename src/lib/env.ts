@@ -1,13 +1,10 @@
 import { z } from 'zod';
 
-const isCI = Boolean(process.env.CI);
-
 // server-side vars: DATABASE_URL required locally, optional in CI
 const serverEnvSchema = z.object({
 	APP_ENV: z.string().default('local'),
-	DATABASE_URL: isCI
-		? z.string().optional()
-		: z.string().min(1, 'DATABASE_URL is required in local/dev').nonempty(),
+	DATABASE_URL: z.string().nonempty(),
+	AUTH_SESSION_SECRET: z.string().min(32, "AUTH_SESSION_SECRET must be at least 32 characters"),
 });
 
 // client-side (public) vars
