@@ -18,6 +18,16 @@ enum MembershipRole {
   MEMBER
 }
 
+enum UserRole {
+  MASTER_ADMIN
+  TENANT
+}
+
+enum UserStatus {
+  ACTIVE
+  DISABLED
+}
+
 model Tenant {
   id          String       @id @default(cuid())
   name        String
@@ -26,6 +36,7 @@ model Tenant {
   updatedAt   DateTime     @updatedAt
   memberships Membership[]
   auditLogs   AuditLog[]
+  users       User[]
 }
 
 model User {
@@ -34,8 +45,16 @@ model User {
   name        String?
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
+  role        UserRole
+  status      UserStatus   @default(ACTIVE)
+  cognitoSub  String?      @unique
+  tenantId    String?
   memberships Membership[]
   auditLogs   AuditLog[]   @relation("AuditActor")
+  tenant      Tenant?      @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+  @@index([role])
 }
 
 model Membership {
