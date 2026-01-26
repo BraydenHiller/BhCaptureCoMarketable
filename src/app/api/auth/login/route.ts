@@ -33,8 +33,15 @@ export async function POST(request: NextRequest) {
 		assertTenantUserIsValid(user);
 		await createSession({ sub: cognitoSub, role: "TENANT", tenantId: user.tenantId! });
 		redirect("/app");
-	} catch {
-		// Generic failure - don't leak error details
+	} catch (err) {
+		// Next.js redirect() throws a NEXT_REDIRECT error; do not treat it as auth failure.
+		if (err && typeof err === "object" && "digest" in err) {
+			const digest = (err as { digest?: unknown }).digest;
+			if (typeof digest === "string" && digest.startsWith("NEXT_REDIRECT")) {
+				throw err;
+			}
+		}
+		console.error("[auth/login] tenant sign-in failed", err);
 		return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
 	}
 }
