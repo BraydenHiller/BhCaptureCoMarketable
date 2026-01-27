@@ -1,6 +1,5 @@
 import * as cdk from "aws-cdk-lib";
 import * as rds from "aws-cdk-lib/aws-rds";
-import * as secretsmanager from "aws-cdk-lib/aws-secretsmanager";
 import * as ec2 from "aws-cdk-lib/aws-ec2";
 import { Construct } from "constructs";
 
@@ -12,6 +11,7 @@ interface DataStackProps extends cdk.StackProps {
 
 export class DataStack extends cdk.Stack {
   public readonly dbUrl: cdk.CfnOutput;
+  public readonly dbSecretArn: cdk.CfnOutput;
 
   constructor(scope: Construct, id: string, props: DataStackProps) {
     super(scope, id, props);
@@ -19,17 +19,7 @@ export class DataStack extends cdk.Stack {
     const dbName = "bhcaptureco";
     const dbUser = "postgres";
 
-    // Create database secret
-    const dbSecret = new secretsmanager.Secret(this, "DbSecret", {
-      generateSecretString: {
-        secretStringTemplate: JSON.stringify({ username: dbUser }),
-        generateStringKey: "password",
-        excludeCharacters: '"@/\\',
-        passwordLength: 32,
-      },
-    });
-
-    // Create RDS Postgres instance
+    // Create RDS Postgres instance with auto-generated secret
     const database = new rds.DatabaseInstance(this, "Database", {
       engine: rds.DatabaseInstanceEngine.postgres({
         version: rds.PostgresEngineVersion.VER_16,
@@ -42,10 +32,12 @@ export class DataStack extends cdk.Stack {
       vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
       securityGroups: [props.dbSecurityGroup],
       databaseName: dbName,
-      credentials: rds.Credentials.fromSecret(dbSecret),
+      credentials: rds.Credentials.fromGeneratedSecret(dbUser, {
+        secretName: `bhcaptureco/db/${props.environment}`,
+      }),
       allocatedStorage: 20,
       storageType: rds.StorageType.GP3,
-      backupRetention: cdk.Duration.days(7),
+      backupRetention: cdk.Duration.days(1),
       multiAz: props.environment === "production",
       deletionProtection: props.environment === "production",
       removalPolicy:
@@ -54,12 +46,15 @@ export class DataStack extends cdk.Stack {
           : cdk.RemovalPolicy.DESTROY,
     });
 
-    // Store credentials in Secrets Manager
-    dbSecret.attach(database);
-
     this.dbUrl = new cdk.CfnOutput(this, "DatabaseUrl", {
       value: `postgresql://${dbUser}:***@${database.dbInstanceEndpointAddress}:5432/${dbName}`,
       description: "Database connection URL (password stored in Secrets Manager)",
+    });
+
+    this.dbSecretArn = new cdk.CfnOutput(this, "DbSecretArn", {
+      value: database.secret?.secretArn || "",
+      description: "ARN of the database secret",
+      exportName: `BhCaptureCo-DbSecret-${props.environment}`,
     });
   }
 }
