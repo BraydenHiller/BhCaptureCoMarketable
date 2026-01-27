@@ -7,6 +7,7 @@ const serverEnvSchema = z.object({
 	AUTH_SESSION_SECRET: z.string().min(32, "AUTH_SESSION_SECRET must be at least 32 characters"),
 	AWS_REGION: z.string().nonempty("AWS_REGION is required"),
 	COGNITO_APP_CLIENT_ID: z.string().nonempty("COGNITO_APP_CLIENT_ID is required"),
+	NEXT_PUBLIC_MAIN_DOMAIN: z.string().nonempty("NEXT_PUBLIC_MAIN_DOMAIN is required"),
 });
 
 // client-side (public) vars
