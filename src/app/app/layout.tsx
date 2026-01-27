@@ -1,22 +1,13 @@
-import { getSession } from '@/lib/auth/session';
+import { requireTenantSession } from '@/lib/auth/requireTenantSession';
 import { runWithTenantScope } from '@/lib/requestScope';
-import { redirect } from 'next/navigation';
 
 export default async function AppLayout({
 	children,
 }: {
 	children: React.ReactNode;
 }) {
-	// Enforce authenticated TENANT session
-	const session = await getSession();
-	if (!session || session.role !== 'TENANT') {
-		redirect('/login');
-	}
-
-	// Enforce tenantId in session
-	if (!session.tenantId) {
-		redirect('/login');
-	}
+	// Enforce authenticated TENANT session using centralized guard
+	const session = await requireTenantSession();
 
 	// Establish request-scoped tenant context
 	return runWithTenantScope(session.tenantId, () => (
