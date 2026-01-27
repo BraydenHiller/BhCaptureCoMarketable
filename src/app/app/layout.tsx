@@ -1,11 +1,17 @@
+import { requireMainDomain } from '@/lib/http/requireMainDomain';
 import { requireTenantSession } from '@/lib/auth/requireTenantSession';
 import { runWithTenantScope } from '@/lib/requestScope';
+
+export const dynamic = 'force-dynamic';
 
 export default async function AppLayout({
 	children,
 }: {
 	children: React.ReactNode;
 }) {
+	// Enforce main domain access (before auth checks)
+	await requireMainDomain();
+
 	// Enforce authenticated TENANT session using centralized guard
 	const session = await requireTenantSession();
 
