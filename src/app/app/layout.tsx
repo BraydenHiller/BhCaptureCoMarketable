@@ -19,22 +19,20 @@ export default async function AppLayout({
 
 	// Establish request-scoped tenant context
 	return runWithTenantScope(session.tenantId, () => (
-		<html lang="en">
-			<body>
-				<header>
-					<h1>Tenant Portal</h1>
-					<nav>
-						<ul>
-							{tenantNav.map((item) => (
-								<li key={item.key}>
-									<Link href={item.href}>{item.label}</Link>
-								</li>
-							))}
-						</ul>
-					</nav>
-				</header>
-				<main>{children}</main>
-			</body>
-		</html>
+		<div>
+			<header>
+				<h1>Tenant Portal</h1>
+				<nav>
+					<ul>
+						{tenantNav.map((item) => (
+							<li key={item.key}>
+								<Link href={item.href}>{item.label}</Link>
+							</li>
+						))}
+					</ul>
+				</nav>
+			</header>
+			<main>{children}</main>
+		</div>
 	));
 }
