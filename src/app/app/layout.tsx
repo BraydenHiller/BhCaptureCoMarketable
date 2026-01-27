@@ -7,22 +7,28 @@ export default async function AppLayout({
 }: {
 	children: React.ReactNode;
 }) {
-	// Get authenticated session
+	// Enforce authenticated TENANT session
 	const session = await getSession();
-
-	// Require TENANT role
 	if (!session || session.role !== 'TENANT') {
 		redirect('/login');
 	}
 
-	// Require tenantId in session
+	// Enforce tenantId in session
 	if (!session.tenantId) {
 		redirect('/login');
 	}
 
-	// Establish request-scoped tenant context from session
-	// This injects tenantId into the request scope for all child pages/components
+	// Establish request-scoped tenant context
 	return runWithTenantScope(session.tenantId, () => (
-		<>{children}</>
+		<html lang="en">
+			<body>
+				<header>
+					<h1>Tenant Portal</h1>
+				</header>
+				<main>
+					{children}
+				</main>
+			</body>
+		</html>
 	));
 }

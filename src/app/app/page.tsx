@@ -1,18 +1,27 @@
-export default function Page() {
-        return (
-                <div className="space-y-4">
-                        <h1 className="text-2xl font-bold">Tenant App Home</h1>
-                        <p className="text-gray-600">
-                                You are accessing the tenant-scoped application area.
-                        </p>
-                        <form action="/api/auth/logout" method="POST">
-                                <button
-                                        type="submit"
-                                        className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
-                                >
-                                        Logout
-                                </button>
-                        </form>
-                </div>
-        );
+import { getRequestDb } from '@/db/requestDb';
+import { getScopedTenantId } from '@/lib/requestScope';
+
+export default async function Page() {
+	const tenantId = getScopedTenantId();
+	const db = getRequestDb();
+
+	const tenant = await db.tenant.findUnique({
+		where: { id: tenantId! },
+		select: { id: true, name: true, slug: true },
+	});
+
+	return (
+		<div>
+			<h2>Dashboard</h2>
+			{tenant ? (
+				<div>
+					<p>Tenant: {tenant.name}</p>
+					<p>ID: {tenant.id}</p>
+					<p>Slug: {tenant.slug}</p>
+				</div>
+			) : (
+				<p>Tenant information unavailable.</p>
+			)}
+		</div>
+	);
 }
