@@ -1,0 +1,27 @@
+{
+  "name": "bhcaptureco-cdk",
+  "version": "1.0.0",
+  "description": "AWS CDK infrastructure for BhCaptureCo",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "cdk:bootstrap": "cdk bootstrap",
+    "cdk:diff": "cdk diff",
+    "cdk:diff:staging": "cdk diff --context environment=staging",
+    "cdk:diff:prod": "cdk diff --context environment=production",
+    "cdk:deploy:staging": "cdk deploy --all --context environment=staging --require-approval never",
+    "cdk:deploy:prod": "cdk deploy --all --context environment=production",
+    "cdk:synth": "cdk synth"
+  },
+  "dependencies": {
+    "aws-cdk-lib": "^2.100.0",
+    "constructs": "^10.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "aws-cdk": "^2.100.0",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.0.0"
+  }
+}
