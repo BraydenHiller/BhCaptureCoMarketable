@@ -4,6 +4,8 @@ import * as ecsPatterns from "aws-cdk-lib/aws-ecs-patterns";
 import * as ec2 from "aws-cdk-lib/aws-ec2";
 import * as logs from "aws-cdk-lib/aws-logs";
 import { Construct } from "constructs";
+import * as iam from "aws-cdk-lib/aws-iam";
+import * as secretsmanager from "aws-cdk-lib/aws-secretsmanager";
 
 interface AppStackProps extends cdk.StackProps {
   vpc: ec2.Vpc;
@@ -61,6 +63,45 @@ export class AppStack extends cdk.Stack {
         },
         publicLoadBalancer: true,
       }
+    );
+
+    // Import database secret by ARN from DataStack export
+    const dbSecretArn = cdk.Fn.importValue(
+      `BhCaptureCo-DbSecretArn-${props.environment}`
+    );
+    const dbSecret = secretsmanager.Secret.fromSecretCompleteArn(
+      this,
+      "DbSecret",
+      dbSecretArn
+    );
+
+    // Import auth session secret by ARN from DataStack export
+    const authSessionSecretArn = cdk.Fn.importValue(
+      `BhCaptureCo-AuthSessionSecretArn-${props.environment}`
+    );
+    const authSessionSecret = secretsmanager.Secret.fromSecretCompleteArn(
+      this,
+      "AuthSessionSecret",
+      authSessionSecretArn
+    );
+
+    // Grant ECS task execution role read permission to Secrets Manager secrets
+    dbSecret.grantRead(fargateService.taskDefinition.executionRole!);
+    authSessionSecret.grantRead(fargateService.taskDefinition.executionRole!);
+
+    // Add explicit policy with ARNs for secrets
+    fargateService.taskDefinition.executionRole!.addToPrincipalPolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: [
+          "secretsmanager:GetSecretValue",
+          "secretsmanager:DescribeSecret",
+        ],
+        resources: [
+          dbSecretArn,
+          authSessionSecretArn,
+        ],
+      })
     );
 
     // Add target group health check
