@@ -3,6 +3,8 @@ import * as ecs from "aws-cdk-lib/aws-ecs";
 import * as ecsPatterns from "aws-cdk-lib/aws-ecs-patterns";
 import * as ec2 from "aws-cdk-lib/aws-ec2";
 import * as logs from "aws-cdk-lib/aws-logs";
+import * as secretsmanager from "aws-cdk-lib/aws-secretsmanager";
+import * as iam from "aws-cdk-lib/aws-iam";
 import { Construct } from "constructs";
 
 interface AppStackProps extends cdk.StackProps {
@@ -30,6 +32,34 @@ export class AppStack extends cdk.Stack {
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
 
+    // Import database secret by ARN from DataStack export
+    const dbSecretArn = cdk.Fn.importValue(
+      `BhCaptureCo-DbSecretArn-${props.environment}`
+    );
+    const dbSecret = secretsmanager.Secret.fromSecretCompleteArn(
+      this,
+      "DbSecret",
+      dbSecretArn
+    );
+
+    // Import auth session secret by ARN from DataStack export
+    const authSessionSecretArn = cdk.Fn.importValue(
+      `BhCaptureCo-AuthSessionSecretArn-${props.environment}`
+    );
+    const authSessionSecret = secretsmanager.Secret.fromSecretCompleteArn(
+      this,
+      "AuthSessionSecret",
+      authSessionSecretArn
+    );
+
+    // Import secret names for wildcard ARN policy
+    const dbSecretName = cdk.Fn.importValue(
+      `BhCaptureCo-DbSecretName-${props.environment}`
+    );
+    const authSessionSecretName = cdk.Fn.importValue(
+      `BhCaptureCo-AuthSessionSecretName-${props.environment}`
+    );
+
     // Create Fargate service with ALB
     const fargateService = new ecsPatterns.ApplicationLoadBalancedFargateService(
       this,
@@ -39,9 +69,11 @@ export class AppStack extends cdk.Stack {
         memoryLimitMiB: 512,
         desiredCount: props.environment === "production" ? 2 : 1,
         cpu: 256,
+        assignPublicIp: true,
+        vpcSubnets: { subnetType: ec2.SubnetType.PUBLIC },
         taskImageOptions: {
           image: ecs.ContainerImage.fromRegistry("public.ecr.aws/docker/library/nginx:latest"),
-          containerPort: 3000,
+          containerPort: 80,
           logDriver: ecs.LogDriver.awsLogs({
             streamPrefix: "ecs",
             logGroup,
@@ -51,16 +83,37 @@ export class AppStack extends cdk.Stack {
             NODE_ENV: props.environment,
           },
           secrets: {
-            DATABASE_URL: ecs.Secret.fromSecretsManager(
-              cdk.SecretValue.secretsManager("bhcaptureco/db").toJSON()
-            ),
-            AUTH_SESSION_SECRET: ecs.Secret.fromSecretsManager(
-              cdk.SecretValue.secretsManager("bhcaptureco/auth-session-secret").toJSON()
-            ),
+            DATABASE_URL: ecs.Secret.fromSecretsManager(dbSecret),
+            AUTH_SESSION_SECRET: ecs.Secret.fromSecretsManager(authSessionSecret),
           },
         },
         publicLoadBalancer: true,
       }
+    );
+
+    // Grant ECS task execution role read permission to Secrets Manager secrets
+    dbSecret.grantRead(fargateService.taskDefinition.executionRole!);
+    authSessionSecret.grantRead(fargateService.taskDefinition.executionRole!);
+
+    // Add explicit policy with wildcard ARNs for secret names
+    fargateService.taskDefinition.executionRole!.addToPrincipalPolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: [
+          "secretsmanager:GetSecretValue",
+          "secretsmanager:DescribeSecret",
+        ],
+        resources: [
+          cdk.Stack.of(this).formatArn({
+            service: "secretsmanager",
+            resource: `secret:${dbSecretName}-*`,
+          }),
+          cdk.Stack.of(this).formatArn({
+            service: "secretsmanager",
+            resource: `secret:${authSessionSecretName}-*`,
+          }),
+        ],
+      })
     );
 
     // Add target group health check

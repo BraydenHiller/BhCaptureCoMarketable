@@ -1,5 +1,6 @@
 import * as cdk from "aws-cdk-lib";
 import * as rds from "aws-cdk-lib/aws-rds";
+import * as secretsmanager from "aws-cdk-lib/aws-secretsmanager";
 import * as ec2 from "aws-cdk-lib/aws-ec2";
 import { Construct } from "constructs";
 
@@ -12,14 +13,23 @@ interface DataStackProps extends cdk.StackProps {
 export class DataStack extends cdk.Stack {
   public readonly dbUrl: cdk.CfnOutput;
   public readonly dbSecretArn: cdk.CfnOutput;
+  public readonly dbSecretName: cdk.CfnOutput;
+  public readonly authSessionSecretArn: cdk.CfnOutput;
+  public readonly authSessionSecretName: cdk.CfnOutput;
 
   constructor(scope: Construct, id: string, props: DataStackProps) {
     super(scope, id, props);
 
     const dbName = "bhcaptureco";
-    const dbUser = "postgres";
 
-    // Create RDS Postgres instance with auto-generated secret
+    // Import existing database secret
+    const dbSecret = secretsmanager.Secret.fromSecretNameV2(
+      this,
+      "DbSecret",
+      `bhcaptureco/db/${props.environment}`
+    );
+
+    // Create RDS Postgres instance using imported secret with explicit dynamic references
     const database = new rds.DatabaseInstance(this, "Database", {
       engine: rds.DatabaseInstanceEngine.postgres({
         version: rds.PostgresEngineVersion.VER_16,
@@ -32,9 +42,12 @@ export class DataStack extends cdk.Stack {
       vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
       securityGroups: [props.dbSecurityGroup],
       databaseName: dbName,
-      credentials: rds.Credentials.fromGeneratedSecret(dbUser, {
-        secretName: `bhcaptureco/db/${props.environment}`,
-      }),
+      credentials: rds.Credentials.fromUsername(
+        cdk.SecretValue.secretsManager(dbSecret.secretArn, { jsonField: "username" }).unsafeUnwrap(),
+        {
+          password: cdk.SecretValue.secretsManager(dbSecret.secretArn, { jsonField: "password" }),
+        }
+      ),
       allocatedStorage: 20,
       storageType: rds.StorageType.GP3,
       backupRetention: cdk.Duration.days(1),
@@ -47,14 +60,39 @@ export class DataStack extends cdk.Stack {
     });
 
     this.dbUrl = new cdk.CfnOutput(this, "DatabaseUrl", {
-      value: `postgresql://${dbUser}:***@${database.dbInstanceEndpointAddress}:5432/${dbName}`,
+      value: `postgresql://***:***@${database.dbInstanceEndpointAddress}:5432/${dbName}`,
       description: "Database connection URL (password stored in Secrets Manager)",
     });
 
     this.dbSecretArn = new cdk.CfnOutput(this, "DbSecretArn", {
-      value: database.secret?.secretArn || "",
+      value: dbSecret.secretArn,
       description: "ARN of the database secret",
-      exportName: `BhCaptureCo-DbSecret-${props.environment}`,
+      exportName: `BhCaptureCo-DbSecretArn-${props.environment}`,
+    });
+
+    this.dbSecretName = new cdk.CfnOutput(this, "DbSecretName", {
+      value: dbSecret.secretName,
+      description: "Name of the database secret",
+      exportName: `BhCaptureCo-DbSecretName-${props.environment}`,
+    });
+
+    // Import existing auth session secret
+    const authSessionSecret = secretsmanager.Secret.fromSecretNameV2(
+      this,
+      "AuthSessionSecret",
+      `bhcaptureco/auth-session-secret/${props.environment}`
+    );
+
+    this.authSessionSecretArn = new cdk.CfnOutput(this, "AuthSessionSecretArn", {
+      value: authSessionSecret.secretArn,
+      description: "ARN of the auth session secret",
+      exportName: `BhCaptureCo-AuthSessionSecretArn-${props.environment}`,
+    });
+
+    this.authSessionSecretName = new cdk.CfnOutput(this, "AuthSessionSecretName", {
+      value: authSessionSecret.secretName,
+      description: "Name of the auth session secret",
+      exportName: `BhCaptureCo-AuthSessionSecretName-${props.environment}`,
     });
   }
 }
