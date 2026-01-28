@@ -12,6 +12,10 @@ interface DataStackProps extends cdk.StackProps {
 
 export class DataStack extends cdk.Stack {
   public readonly dbUrl: cdk.CfnOutput;
+  public readonly dbSecretArn: cdk.CfnOutput;
+  public readonly dbSecretName: cdk.CfnOutput;
+  public readonly authSessionSecretArn: cdk.CfnOutput;
+  public readonly dbSecurityGroupId: cdk.CfnOutput;
 
   constructor(scope: Construct, id: string, props: DataStackProps) {
     super(scope, id, props);
@@ -60,6 +64,29 @@ export class DataStack extends cdk.Stack {
     this.dbUrl = new cdk.CfnOutput(this, "DatabaseUrl", {
       value: `postgresql://${dbUser}:***@${database.dbInstanceEndpointAddress}:5432/${dbName}`,
       description: "Database connection URL (password stored in Secrets Manager)",
+    });
+
+    this.dbSecretArn = new cdk.CfnOutput(this, "DbSecretArn", {
+      value: dbSecret.secretArn,
+      description: "ARN of the database secret",
+    });
+
+    this.dbSecretName = new cdk.CfnOutput(this, "DbSecretName", {
+      value: dbSecret.secretName,
+      description: "Name of the database secret",
+    });
+
+    this.authSessionSecretArn = new cdk.CfnOutput(this, "AuthSessionSecretArn", {
+      value: authSessionSecret.secretArn,
+      description: "ARN of the auth session secret",
+      exportName: `BhCaptureCo-AuthSessionSecretArn-${props.environment}`,
+    });
+
+    // Export DB security group ID for App Runner ingress
+    this.dbSecurityGroupId = new cdk.CfnOutput(this, "DbSecurityGroupId", {
+      value: props.dbSecurityGroup.securityGroupId,
+      description: "Security group ID for database",
+      exportName: `BhCaptureCo-DbSecurityGroupId-${props.environment}`,
     });
   }
 }
