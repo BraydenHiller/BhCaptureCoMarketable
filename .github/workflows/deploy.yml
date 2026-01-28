@@ -81,7 +81,9 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Deploy to staging
-        run: cd infra/cdk && npm run cdk:deploy:staging
+        run: |
+          cd infra/cdk
+          npm run cdk:deploy:staging -- NetworkStack-staging DataStack-staging
         env:
           DEPLOY_ENV: staging
 
