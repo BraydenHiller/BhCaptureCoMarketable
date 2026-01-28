@@ -3,51 +3,89 @@ import { NetworkStack } from "./network-stack";
 import { DataStack } from "./data-stack";
 import { AppStack } from "./app-stack";
 import { StorageStack } from "./storage-stack";
+import { AppRunnerStack } from "./apprunner-stack";
 import { IamStack } from "./iam-stack";
 
 const app = new cdk.App();
 
-const environment = app.node.tryGetContext("environment") || "staging";
+// Derive environment from context or default to staging
+const deployEnv = app.node.tryGetContext("env") ?? "staging";
+if (!["staging", "production"].includes(deployEnv)) {
+  throw new Error("env context must be 'staging' or 'production'");
+}
+
+const stackPrefix = `bhcaptureco-${deployEnv}`;
+
+// Create CDK environment from process env
+const env: cdk.Environment = {
+  account: process.env.CDK_DEFAULT_ACCOUNT,
+  region: process.env.CDK_DEFAULT_REGION,
+};
+
 const platformDomain =
   app.node.tryGetContext("platformDomain") || "app.example.com";
 const gitHubOwner = app.node.tryGetContext("gitHubOwner") || "your-org";
 const gitHubRepo = app.node.tryGetContext("gitHubRepo") || "bhcaptureco-marketable";
 
-const networkStack = new NetworkStack(app, `NetworkStack-${environment}`, {
-  environment,
-  description: "Network infrastructure for BhCaptureCo",
+// Network Stack
+const networkStack = new NetworkStack(app, `${stackPrefix}-network`, {
+  environment: deployEnv,
+  env,
+  stackName: deployEnv === "staging" ? "NetworkStack-staging" : undefined,
+  description: `Network infrastructure for BhCaptureCo (${deployEnv})`,
 });
 
-const dataStack = new DataStack(app, `DataStack-${environment}`, {
+// Data Stack
+const dataStack = new DataStack(app, `${stackPrefix}-data`, {
   vpc: networkStack.vpc,
   dbSecurityGroup: networkStack.dbSecurityGroup,
-  environment,
-  description: "Database infrastructure for BhCaptureCo",
+  environment: deployEnv,
+  env,
+  stackName: deployEnv === "staging" ? "DataStack-staging" : undefined,
+  description: `Database infrastructure for BhCaptureCo (${deployEnv})`,
 });
 
-const appStack = new AppStack(app, `AppStack-${environment}`, {
+// App Runner Stack (replaces AppStack for staging)
+const appRunnerStack = new AppRunnerStack(app, `${stackPrefix}-apprunner`, {
   vpc: networkStack.vpc,
-  environment,
+  environment: deployEnv,
+  env,
+  stackName: deployEnv === "staging" ? "AppRunnerStack-staging" : undefined,
+  description: `App Runner infrastructure for BhCaptureCo (${deployEnv})`,
+});
+
+// App Stack (ECS for production)
+const appStack = new AppStack(app, `${stackPrefix}-app`, {
+  vpc: networkStack.vpc,
+  environment: deployEnv,
   platformDomain,
   databaseUrl: "postgresql://user:pass@host:5432/bhcaptureco",
-  description: "Application infrastructure for BhCaptureCo",
+  env,
+  stackName: deployEnv === "staging" ? undefined : "AppStack-prod",
+  description: `Application infrastructure for BhCaptureCo (${deployEnv})`,
 });
 
-const storageStack = new StorageStack(app, `StorageStack-${environment}`, {
-  environment,
-  description: "Storage infrastructure for BhCaptureCo",
+// Storage Stack
+const storageStack = new StorageStack(app, `${stackPrefix}-storage`, {
+  environment: deployEnv,
+  env,
+  stackName: deployEnv === "staging" ? "StorageStack-staging" : undefined,
+  description: `Storage infrastructure for BhCaptureCo (${deployEnv})`,
 });
 
-const iamStack = new IamStack(app, "IamStack", {
+// IAM Stack (shared across environments)
+const iamStack = new IamStack(app, "BhCaptureCoIam", {
   gitHubOwner,
   gitHubRepo,
+  env,
+  stackName: deployEnv === "staging" ? "IamStack-staging" : undefined,
   description: "IAM roles for GitHub Actions CI/CD",
 });
 
-// Use stacks to prevent unused variable warnings
+// Add dependencies
 dataStack.node.addDependency(networkStack);
+appRunnerStack.node.addDependency(networkStack);
 appStack.node.addDependency(networkStack);
 storageStack.node.addDependency(networkStack);
-iamStack.node.addDependency(networkStack);
 
 app.synth();
