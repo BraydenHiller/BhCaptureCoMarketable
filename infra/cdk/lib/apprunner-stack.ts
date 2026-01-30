@@ -23,6 +23,9 @@ export class AppRunnerStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: AppRunnerStackProps) {
     super(scope, id, props);
 
+    // Read context to determine if we should deploy the App Runner service
+    const deployService = (this.node.tryGetContext("deployService") ?? "true") === "true";
+
     // Create ECR repository for app images
     const ecrRepo = new ecr.Repository(this, "AppRepository", {
       repositoryName: `bhcaptureco-app-${props.environment}`,
@@ -82,60 +85,76 @@ export class AppRunnerStack extends cdk.Stack {
     // Grant instance role permission to read secrets
     authSessionSecret.grantRead(instanceRole);
 
-    // Create App Runner Service
-    // Environment variables:
-    //   - NODE_ENV, AWS_REGION, NEXT_PUBLIC_MAIN_DOMAIN, COGNITO_APP_CLIENT_ID: from CDK props (plain text)
-    //   - AUTH_SESSION_SECRET: from Secrets Manager (via instanceRole)
-    //   - DATABASE_URL: from DataStack export (plain text, staging only)
-    const appRunnerService = new apprunner.CfnService(this, "AppRunnerService", {
-      serviceName: `bhcaptureco-${props.environment}`,
-      sourceConfiguration: {
-        autoDeploymentsEnabled: false,
-        authenticationConfiguration: {
-          accessRoleArn: accessRole.roleArn,
-        },
-        imageRepository: {
-          imageIdentifier: `${ecrRepo.repositoryUri}:latest`,
-          imageRepositoryType: "ECR",
-          imageConfiguration: {
-            port: "3000",
-            runtimeEnvironmentVariables: [
-              {
-                name: "NODE_ENV",
-                value: "production",
-              },
-              {
-                name: "AWS_REGION",
-                value: this.region,
-              },
-              {
-                name: "DATABASE_URL",
-                value: databaseUrl,
-              },
-            ],
+    // Conditionally create App Runner Service
+    if (deployService) {
+      // Create App Runner Service
+      // Environment variables:
+      //   - NODE_ENV, AWS_REGION, NEXT_PUBLIC_MAIN_DOMAIN, COGNITO_APP_CLIENT_ID: from CDK props (plain text)
+      //   - AUTH_SESSION_SECRET: from Secrets Manager (via instanceRole)
+      //   - DATABASE_URL: from DataStack export (plain text, staging only)
+      const appRunnerService = new apprunner.CfnService(this, "AppRunnerService", {
+        serviceName: `bhcaptureco-${props.environment}`,
+        sourceConfiguration: {
+          autoDeploymentsEnabled: false,
+          authenticationConfiguration: {
+            accessRoleArn: accessRole.roleArn,
+          },
+          imageRepository: {
+            imageIdentifier: `${ecrRepo.repositoryUri}:latest`,
+            imageRepositoryType: "ECR",
+            imageConfiguration: {
+              port: "3000",
+              runtimeEnvironmentVariables: [
+                {
+                  name: "NODE_ENV",
+                  value: "production",
+                },
+                {
+                  name: "AWS_REGION",
+                  value: this.region,
+                },
+                {
+                  name: "DATABASE_URL",
+                  value: databaseUrl,
+                },
+              ],
+            },
           },
         },
-      },
-      instanceConfiguration: {
-        cpu: "1 vCPU",
-        memory: "2 GB",
-        instanceRoleArn: instanceRole.roleArn,
-      },
-      networkConfiguration: {
-        egressConfiguration: {
-          egressType: "VPC",
-          vpcConnectorArn: vpcConnector.attrVpcConnectorArn,
+        instanceConfiguration: {
+          cpu: "1 vCPU",
+          memory: "2 GB",
+          instanceRoleArn: instanceRole.roleArn,
         },
-      },
-      healthCheckConfiguration: {
-        protocol: "HTTP",
-        path: "/",
-        interval: 10,
-        timeout: 5,
-        healthyThreshold: 1,
-        unhealthyThreshold: 5,
-      },
-    });
+        networkConfiguration: {
+          egressConfiguration: {
+            egressType: "VPC",
+            vpcConnectorArn: vpcConnector.attrVpcConnectorArn,
+          },
+        },
+        healthCheckConfiguration: {
+          protocol: "HTTP",
+          path: "/",
+          interval: 10,
+          timeout: 5,
+          healthyThreshold: 1,
+          unhealthyThreshold: 5,
+        },
+      });
+
+      // Outputs for App Runner service
+      this.appRunnerServiceArn = new cdk.CfnOutput(this, "AppRunnerServiceArn", {
+        value: appRunnerService.attrServiceArn,
+        description: "App Runner service ARN",
+        exportName: `BhCaptureCo-AppRunnerServiceArn-${props.environment}`,
+      });
+
+      this.appRunnerServiceUrl = new cdk.CfnOutput(this, "AppRunnerServiceUrl", {
+        value: appRunnerService.attrServiceUrl,
+        description: "App Runner service URL",
+        exportName: `BhCaptureCo-AppRunnerServiceUrl-${props.environment}`,
+      });
+    }
 
     // Outputs
     this.ecrRepoUri = new cdk.CfnOutput(this, "EcrRepoUri", {
@@ -144,16 +163,10 @@ export class AppRunnerStack extends cdk.Stack {
       exportName: `BhCaptureCo-EcrRepoUri-${props.environment}`,
     });
 
-    this.appRunnerServiceArn = new cdk.CfnOutput(this, "AppRunnerServiceArn", {
-      value: appRunnerService.attrServiceArn,
-      description: "App Runner service ARN",
-      exportName: `BhCaptureCo-AppRunnerServiceArn-${props.environment}`,
-    });
-
-    this.appRunnerServiceUrl = new cdk.CfnOutput(this, "AppRunnerServiceUrl", {
-      value: appRunnerService.attrServiceUrl,
-      description: "App Runner service URL",
-      exportName: `BhCaptureCo-AppRunnerServiceUrl-${props.environment}`,
+    new cdk.CfnOutput(this, "EcrRepoName", {
+      value: ecrRepo.repositoryName,
+      description: "ECR repository name for app images",
+      exportName: `BhCaptureCo-AppRepoName-${props.environment}`,
     });
 
     this.vpcConnectorSecurityGroupId = new cdk.CfnOutput(this, "VpcConnectorSecurityGroupId", {
