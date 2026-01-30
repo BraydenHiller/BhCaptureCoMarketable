@@ -16,16 +16,16 @@ export class NetworkStack extends cdk.Stack {
     // Create VPC with public and private subnets
     this.vpc = new ec2.Vpc(this, "Vpc", {
       maxAzs: 2,
-      cidrMask: 24,
+      ipAddresses: ec2.IpAddresses.cidr("10.0.0.0/16"),
       natGateways: 1,
       subnetConfiguration: [
         {
-          cidrMask: 26,
+          cidrMask: 24,
           name: "Public",
           subnetType: ec2.SubnetType.PUBLIC,
         },
         {
-          cidrMask: 26,
+          cidrMask: 24,
           name: "Private",
           subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS,
         },

@@ -1,7 +1,6 @@
 import * as cdk from "aws-cdk-lib";
 import { NetworkStack } from "./network-stack";
 import { DataStack } from "./data-stack";
-import { AppStack } from "./app-stack";
 import { StorageStack } from "./storage-stack";
 import { AppRunnerStack } from "./apprunner-stack";
 import { IamStack } from "./iam-stack";
@@ -54,17 +53,6 @@ const appRunnerStack = new AppRunnerStack(app, `${stackPrefix}-apprunner`, {
   description: `App Runner infrastructure for BhCaptureCo (${deployEnv})`,
 });
 
-// App Stack (ECS for production)
-const appStack = new AppStack(app, `${stackPrefix}-app`, {
-  vpc: networkStack.vpc,
-  environment: deployEnv,
-  platformDomain,
-  databaseUrl: "postgresql://user:pass@host:5432/bhcaptureco",
-  env,
-  stackName: deployEnv === "staging" ? undefined : "AppStack-prod",
-  description: `Application infrastructure for BhCaptureCo (${deployEnv})`,
-});
-
 // Storage Stack
 const storageStack = new StorageStack(app, `${stackPrefix}-storage`, {
   environment: deployEnv,
@@ -85,7 +73,6 @@ const iamStack = new IamStack(app, "BhCaptureCoIam", {
 // Add dependencies
 dataStack.node.addDependency(networkStack);
 appRunnerStack.node.addDependency(networkStack);
-appStack.node.addDependency(networkStack);
 storageStack.node.addDependency(networkStack);
 
 app.synth();

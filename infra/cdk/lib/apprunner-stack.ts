@@ -120,5 +120,22 @@ export class AppRunnerStack extends cdk.Stack {
       description: "Security group ID for VPC connector",
       exportName: `BhCaptureCo-VpcConnectorSgId-${props.environment}`,
     });
+
+    // Import DB security group and allow inbound from connector (staging only)
+    if (props.environment === "staging") {
+      const dbSecurityGroupId = cdk.Fn.importValue(
+        `BhCaptureCo-DbSecurityGroupId-${props.environment}`
+      );
+      const dbSecurityGroup = ec2.SecurityGroup.fromSecurityGroupId(
+        this,
+        "DbSecurityGroup",
+        dbSecurityGroupId
+      );
+      dbSecurityGroup.addIngressRule(
+        ec2.Peer.securityGroupId(connectorSecurityGroup.securityGroupId),
+        ec2.Port.tcp(5432),
+        "Allow Postgres from App Runner"
+      );
+    }
   }
 }
