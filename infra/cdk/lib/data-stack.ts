@@ -59,6 +59,7 @@ export class DataStack extends cdk.Stack {
     this.dbUrl = new cdk.CfnOutput(this, "DatabaseUrl", {
       value: `postgresql://***:***@${database.dbInstanceEndpointAddress}:5432/${dbName}`,
       description: "Database connection URL (credentials in Secrets Manager)",
+      exportName: `BhCaptureCo-DatabaseUrl-${props.environment}`,
     });
 
     this.dbSecretArn = new cdk.CfnOutput(this, "DbSecretArn", {

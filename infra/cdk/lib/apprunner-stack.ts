@@ -3,11 +3,15 @@ import * as ecr from "aws-cdk-lib/aws-ecr";
 import * as apprunner from "aws-cdk-lib/aws-apprunner";
 import * as ec2 from "aws-cdk-lib/aws-ec2";
 import * as iam from "aws-cdk-lib/aws-iam";
+import * as secretsmanager from "aws-cdk-lib/aws-secretsmanager";
 import { Construct } from "constructs";
 
 interface AppRunnerStackProps extends cdk.StackProps {
   vpc: ec2.Vpc;
   environment: string;
+  region?: string;
+  mainDomain?: string;
+  cognitoAppClientId?: string;
 }
 
 export class AppRunnerStack extends cdk.Stack {
@@ -42,6 +46,28 @@ export class AppRunnerStack extends cdk.Stack {
       vpcConnectorName: `bhcaptureco-connector-${props.environment}`,
     });
 
+    // Import secrets from DataStack exports
+    const dbSecretArn = cdk.Fn.importValue(
+      `BhCaptureCo-DbSecretArn-${props.environment}`
+    );
+    const authSessionSecretArn = cdk.Fn.importValue(
+      `BhCaptureCo-AuthSessionSecretArn-${props.environment}`
+    );
+    const databaseUrl = cdk.Fn.importValue(
+      `BhCaptureCo-DatabaseUrl-${props.environment}`
+    );
+
+    const dbSecret = secretsmanager.Secret.fromSecretCompleteArn(
+      this,
+      "DbSecret",
+      dbSecretArn
+    );
+    const authSessionSecret = secretsmanager.Secret.fromSecretCompleteArn(
+      this,
+      "AuthSessionSecret",
+      authSessionSecretArn
+    );
+
     // Create IAM role for App Runner instance
     const instanceRole = new iam.Role(this, "AppRunnerInstanceRole", {
       assumedBy: new iam.ServicePrincipal("tasks.apprunner.amazonaws.com"),
@@ -53,7 +79,14 @@ export class AppRunnerStack extends cdk.Stack {
     });
     ecrRepo.grantPull(accessRole);
 
+    // Grant instance role permission to read secrets
+    authSessionSecret.grantRead(instanceRole);
+
     // Create App Runner Service
+    // Environment variables:
+    //   - NODE_ENV, AWS_REGION, NEXT_PUBLIC_MAIN_DOMAIN, COGNITO_APP_CLIENT_ID: from CDK props (plain text)
+    //   - AUTH_SESSION_SECRET: from Secrets Manager (via instanceRole)
+    //   - DATABASE_URL: from DataStack export (plain text, staging only)
     const appRunnerService = new apprunner.CfnService(this, "AppRunnerService", {
       serviceName: `bhcaptureco-${props.environment}`,
       sourceConfiguration: {
@@ -69,7 +102,15 @@ export class AppRunnerStack extends cdk.Stack {
             runtimeEnvironmentVariables: [
               {
                 name: "NODE_ENV",
-                value: props.environment,
+                value: "production",
+              },
+              {
+                name: "AWS_REGION",
+                value: this.region,
+              },
+              {
+                name: "DATABASE_URL",
+                value: databaseUrl,
               },
             ],
           },
