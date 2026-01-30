@@ -46,7 +46,8 @@ export class DataStack extends cdk.Stack {
       credentials: rds.Credentials.fromSecret(dbSecret),
       allocatedStorage: 20,
       storageType: rds.StorageType.GP3,
-      backupRetention: cdk.Duration.days(7),
+      backupRetention: props.environment === "production" ? cdk.Duration.days(7) : cdk.Duration.days(1),
+      deleteAutomatedBackups: true,
       multiAz: props.environment === "production",
       deletionProtection: props.environment === "production",
       removalPolicy:
