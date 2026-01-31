@@ -100,7 +100,7 @@ export class AppRunnerStack extends cdk.Stack {
             accessRoleArn: accessRole.roleArn,
           },
           imageRepository: {
-            imageIdentifier: `${ecrRepo.repositoryUri}:latest`,
+            imageIdentifier: "031277186672.dkr.ecr.us-east-2.amazonaws.com/bhcaptureco-apprunner:latest",
             imageRepositoryType: "ECR",
             imageConfiguration: {
               port: "3000",
@@ -126,10 +126,10 @@ export class AppRunnerStack extends cdk.Stack {
                   value: props.mainDomain || "not-set",
                 },
               ],
-              secrets: [
+              runtimeEnvironmentSecrets: [
                 {
                   name: "AUTH_SESSION_SECRET",
-                  valueFrom: authSessionSecretArn,
+                  value: authSessionSecretArn,
                 },
               ],
             },
