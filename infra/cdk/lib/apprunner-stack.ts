@@ -81,6 +81,12 @@ export class AppRunnerStack extends cdk.Stack {
       assumedBy: new iam.ServicePrincipal("build.apprunner.amazonaws.com"),
     });
     ecrRepo.grantPull(accessRole);
+    accessRole.addToPolicy(
+      new iam.PolicyStatement({
+        actions: ["ecr:GetAuthorizationToken"],
+        resources: ["*"],
+      })
+    );
 
     // Grant instance role permission to read secrets
     authSessionSecret.grantRead(instanceRole);
