@@ -117,6 +117,20 @@ export class AppRunnerStack extends cdk.Stack {
                   name: "DATABASE_URL",
                   value: databaseUrl,
                 },
+                {
+                  name: "COGNITO_APP_CLIENT_ID",
+                  value: props.cognitoAppClientId || "not-set",
+                },
+                {
+                  name: "NEXT_PUBLIC_MAIN_DOMAIN",
+                  value: props.mainDomain || "not-set",
+                },
+              ],
+              secrets: [
+                {
+                  name: "AUTH_SESSION_SECRET",
+                  valueFrom: authSessionSecretArn,
+                },
               ],
             },
           },
