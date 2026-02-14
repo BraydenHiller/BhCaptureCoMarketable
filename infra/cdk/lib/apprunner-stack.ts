@@ -26,14 +26,12 @@ export class AppRunnerStack extends cdk.Stack {
     // Read context to determine if we should deploy the App Runner service
     const deployService = (this.node.tryGetContext("deployService") ?? "true") === "true";
 
-    // Create ECR repository for app images
-    const ecrRepo = new ecr.Repository(this, "AppRepository", {
-      repositoryName: `bhcaptureco-app-${props.environment}`,
-      removalPolicy: props.environment === "production" 
-        ? cdk.RemovalPolicy.RETAIN 
-        : cdk.RemovalPolicy.DESTROY,
-      imageScanOnPush: true,
-    });
+    // Use existing ECR repository for app images
+    const ecrRepo = ecr.Repository.fromRepositoryName(
+      this,
+      "AppRepository",
+      "bhcaptureco-apprunner"
+    );
 
     // Create security group for VPC connector
     const connectorSecurityGroup = new ec2.SecurityGroup(this, "AppRunnerConnectorSecurityGroup", {
@@ -53,9 +51,6 @@ export class AppRunnerStack extends cdk.Stack {
     const dbSecretArn = cdk.Fn.importValue(
       `BhCaptureCo-DbSecretArn-${props.environment}`
     );
-    const authSessionSecretArn = cdk.Fn.importValue(
-      `BhCaptureCo-AuthSessionSecretArn-${props.environment}`
-    );
     const databaseUrl = cdk.Fn.importValue(
       `BhCaptureCo-DatabaseUrl-${props.environment}`
     );
@@ -65,10 +60,10 @@ export class AppRunnerStack extends cdk.Stack {
       "DbSecret",
       dbSecretArn
     );
-    const authSessionSecret = secretsmanager.Secret.fromSecretCompleteArn(
+    const authSessionSecret = secretsmanager.Secret.fromSecretNameV2(
       this,
       "AuthSessionSecret",
-      authSessionSecretArn
+      `bhcaptureco/auth-session-secret/${props.environment}`
     );
 
     // Create IAM role for App Runner instance
@@ -106,7 +101,7 @@ export class AppRunnerStack extends cdk.Stack {
             accessRoleArn: accessRole.roleArn,
           },
           imageRepository: {
-            imageIdentifier: "031277186672.dkr.ecr.us-east-2.amazonaws.com/bhcaptureco-apprunner:latest",
+            imageIdentifier: `${ecrRepo.repositoryUri}:latest`,
             imageRepositoryType: "ECR",
             imageConfiguration: {
               port: "3000",
@@ -135,7 +130,7 @@ export class AppRunnerStack extends cdk.Stack {
               runtimeEnvironmentSecrets: [
                 {
                   name: "AUTH_SESSION_SECRET",
-                  value: authSessionSecretArn,
+                  value: authSessionSecret.secretArn,
                 },
               ],
             },
