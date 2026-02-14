@@ -12,24 +12,25 @@ interface DataStackProps extends cdk.StackProps {
 
 export class DataStack extends cdk.Stack {
   public readonly dbUrl: cdk.CfnOutput;
+  public readonly dbSecretArn: cdk.CfnOutput;
+  public readonly dbSecretName: cdk.CfnOutput;
+  public readonly authSessionSecretArn: cdk.CfnOutput;
+  public readonly authSessionSecretName: cdk.CfnOutput;
+  public readonly dbSecurityGroupId: cdk.CfnOutput;
 
   constructor(scope: Construct, id: string, props: DataStackProps) {
     super(scope, id, props);
 
     const dbName = "bhcaptureco";
-    const dbUser = "postgres";
 
-    // Create database secret
-    const dbSecret = new secretsmanager.Secret(this, "DbSecret", {
-      generateSecretString: {
-        secretStringTemplate: JSON.stringify({ username: dbUser }),
-        generateStringKey: "password",
-        excludeCharacters: '"@/\\',
-        passwordLength: 32,
-      },
-    });
+    // Import existing database secret
+    const dbSecret = secretsmanager.Secret.fromSecretNameV2(
+      this,
+      "DbSecret",
+      `bhcaptureco/db/${props.environment}`
+    );
 
-    // Create RDS Postgres instance
+    // Create RDS Postgres instance using imported secret with explicit dynamic references
     const database = new rds.DatabaseInstance(this, "Database", {
       engine: rds.DatabaseInstanceEngine.postgres({
         version: rds.PostgresEngineVersion.VER_16,
@@ -45,7 +46,8 @@ export class DataStack extends cdk.Stack {
       credentials: rds.Credentials.fromSecret(dbSecret),
       allocatedStorage: 20,
       storageType: rds.StorageType.GP3,
-      backupRetention: cdk.Duration.days(7),
+      backupRetention: props.environment === "production" ? cdk.Duration.days(7) : cdk.Duration.days(1),
+      deleteAutomatedBackups: true,
       multiAz: props.environment === "production",
       deletionProtection: props.environment === "production",
       removalPolicy:
@@ -54,12 +56,48 @@ export class DataStack extends cdk.Stack {
           : cdk.RemovalPolicy.DESTROY,
     });
 
-    // Store credentials in Secrets Manager
-    dbSecret.attach(database);
-
     this.dbUrl = new cdk.CfnOutput(this, "DatabaseUrl", {
-      value: `postgresql://${dbUser}:***@${database.dbInstanceEndpointAddress}:5432/${dbName}`,
-      description: "Database connection URL (password stored in Secrets Manager)",
+      value: `postgresql://***:***@${database.dbInstanceEndpointAddress}:5432/${dbName}`,
+      description: "Database connection URL (credentials in Secrets Manager)",
+      exportName: `BhCaptureCo-DatabaseUrl-${props.environment}`,
+    });
+
+    this.dbSecretArn = new cdk.CfnOutput(this, "DbSecretArn", {
+      value: dbSecret.secretArn,
+      description: "ARN of the database secret",
+      exportName: `BhCaptureCo-DbSecretArn-${props.environment}`,
+    });
+
+    this.dbSecretName = new cdk.CfnOutput(this, "DbSecretName", {
+      value: dbSecret.secretName,
+      description: "Name of the database secret",
+      exportName: `BhCaptureCo-DbSecretName-${props.environment}`,
+    });
+
+    // Import existing auth session secret
+    const authSessionSecret = secretsmanager.Secret.fromSecretNameV2(
+      this,
+      "AuthSessionSecret",
+      `bhcaptureco/auth-session-secret/${props.environment}`
+    );
+
+    this.authSessionSecretArn = new cdk.CfnOutput(this, "AuthSessionSecretArn", {
+      value: authSessionSecret.secretArn,
+      description: "ARN of the auth session secret",
+      exportName: `BhCaptureCo-AuthSessionSecretArn-${props.environment}`,
+    });
+
+    this.authSessionSecretName = new cdk.CfnOutput(this, "AuthSessionSecretName", {
+      value: authSessionSecret.secretName,
+      description: "Name of the auth session secret",
+      exportName: `BhCaptureCo-AuthSessionSecretName-${props.environment}`,
+    });
+
+    // Export DB security group ID for App Runner ingress
+    this.dbSecurityGroupId = new cdk.CfnOutput(this, "DbSecurityGroupId", {
+      value: props.dbSecurityGroup.securityGroupId,
+      description: "Security group ID for database",
+      exportName: `BhCaptureCo-DbSecurityGroupId-${props.environment}`,
     });
   }
 }
