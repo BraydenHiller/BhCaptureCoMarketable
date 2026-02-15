@@ -1,0 +1,4 @@
+-- AlterTable
+ALTER TABLE "Tenant" ADD COLUMN     "storageEnforced" BOOLEAN NOT NULL DEFAULT true,
+ADD COLUMN     "storageLimitBytes" BIGINT NOT NULL DEFAULT 1073741824,
+ADD COLUMN     "storageUsedBytes" BIGINT NOT NULL DEFAULT 0;
