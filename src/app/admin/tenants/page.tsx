@@ -1,5 +1,6 @@
 import { requireMasterAdminSession } from '@/lib/auth/requireMasterAdminSession';
 import { prisma } from '@/db/prisma';
+import Link from 'next/link';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,17 +31,33 @@ export default async function Page() {
 						<th className="border border-gray-300 px-4 py-2 text-left">Status</th>
 						<th className="border border-gray-300 px-4 py-2 text-left">Billing Status</th>
 						<th className="border border-gray-300 px-4 py-2 text-left">Created At</th>
+						<th className="border border-gray-300 px-4 py-2 text-left">Actions</th>
 					</tr>
 				</thead>
 				<tbody>
 					{tenants.map((tenant) => (
 						<tr key={tenant.id}>
-							<td className="border border-gray-300 px-4 py-2">{tenant.id}</td>
+							<td className="border border-gray-300 px-4 py-2">
+								<Link
+									href={`/admin/tenants/${tenant.id}`}
+									className="text-indigo-600 hover:underline"
+								>
+									{tenant.id}
+								</Link>
+							</td>
 							<td className="border border-gray-300 px-4 py-2">{tenant.slug}</td>
 							<td className="border border-gray-300 px-4 py-2">{tenant.status}</td>
 							<td className="border border-gray-300 px-4 py-2">{tenant.billingStatus}</td>
 							<td className="border border-gray-300 px-4 py-2">
 								{tenant.createdAt.toISOString()}
+							</td>
+							<td className="border border-gray-300 px-4 py-2">
+								<Link
+									href={`/admin/tenants/${tenant.id}`}
+									className="bg-indigo-600 text-white px-3 py-1 rounded hover:bg-indigo-700"
+								>
+									Manage
+								</Link>
 							</td>
 						</tr>
 					))}

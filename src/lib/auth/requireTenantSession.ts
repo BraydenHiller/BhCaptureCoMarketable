@@ -9,7 +9,11 @@ type TenantSession = {
 	exp: number;
 };
 
-export async function requireTenantSession(): Promise<TenantSession> {
+type ActiveTenantSession = TenantSession & {
+	tenant: { id: string; status: string; billingStatus: string };
+};
+
+async function getActiveTenantFromSession(): Promise<ActiveTenantSession> {
 	const session = await getSession();
 
 	// No session or wrong role
@@ -22,7 +26,7 @@ export async function requireTenantSession(): Promise<TenantSession> {
 		redirect('/login');
 	}
 
-	const { prisma } = await import("../../db/prisma");
+	const { prisma } = await import('../../db/prisma');
 	const tenant = await prisma.tenant.findUnique({
 		where: { id: session.tenantId },
 	});
@@ -31,9 +35,38 @@ export async function requireTenantSession(): Promise<TenantSession> {
 		redirect('/login');
 	}
 
-	if (tenant.billingStatus !== 'ACTIVE') {
+	return {
+		sub: session.sub,
+		role: session.role,
+		tenantId: session.tenantId,
+		iat: session.iat,
+		exp: session.exp,
+		tenant: {
+			id: tenant.id,
+			status: tenant.status,
+			billingStatus: tenant.billingStatus,
+		},
+	};
+}
+
+export async function requireTenantSession(): Promise<TenantSession> {
+	const session = await getActiveTenantFromSession();
+
+	if (session.tenant.billingStatus !== 'ACTIVE') {
 		redirect('/billing');
 	}
+
+	return {
+		sub: session.sub,
+		role: session.role,
+		tenantId: session.tenantId,
+		iat: session.iat,
+		exp: session.exp,
+	};
+}
+
+export async function requireTenantSessionAllowUnpaid(): Promise<TenantSession> {
+	const session = await getActiveTenantFromSession();
 
 	return {
 		sub: session.sub,

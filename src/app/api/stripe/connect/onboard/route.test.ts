@@ -36,7 +36,7 @@ describe('POST /api/stripe/connect/onboard', () => {
 	});
 
 	it('creates stripe account when stripeAccountId is missing and returns accountLink url', async () => {
-		const { requireTenantSession } = await import('@/lib/auth/requireTenantSession');
+		const { requireTenantSessionAllowUnpaid } = await import('@/lib/auth/requireTenantSession');
 		const prismaMock = (await import('@/db/prisma')) as unknown as {
 			prisma: {
 				tenant: {
@@ -56,7 +56,7 @@ describe('POST /api/stripe/connect/onboard', () => {
 		const stripe = stripeMock.getStripe();
 		const { getRequestBaseUrl } = await import('@/lib/http/baseUrl');
 
-		vi.mocked(requireTenantSession).mockResolvedValue({
+		vi.mocked(requireTenantSessionAllowUnpaid).mockResolvedValue({
 			tenantId: 't1',
 			role: 'TENANT',
 			sub: 's1',
@@ -105,7 +105,7 @@ describe('POST /api/stripe/connect/onboard', () => {
 	});
 
 	it('does not create stripe account when stripeAccountId already exists', async () => {
-		const { requireTenantSession } = await import('@/lib/auth/requireTenantSession');
+		const { requireTenantSessionAllowUnpaid } = await import('@/lib/auth/requireTenantSession');
 		const prismaMock = (await import('@/db/prisma')) as unknown as {
 			prisma: {
 				tenant: {
@@ -125,7 +125,7 @@ describe('POST /api/stripe/connect/onboard', () => {
 		const stripe = stripeMock.getStripe();
 		const { getRequestBaseUrl } = await import('@/lib/http/baseUrl');
 
-		vi.mocked(requireTenantSession).mockResolvedValue({
+		vi.mocked(requireTenantSessionAllowUnpaid).mockResolvedValue({
 			tenantId: 't1',
 			role: 'TENANT',
 			sub: 's1',
@@ -163,7 +163,7 @@ describe('POST /api/stripe/connect/onboard', () => {
 	});
 
 	it('returns 404 when tenant not found', async () => {
-		const { requireTenantSession } = await import('@/lib/auth/requireTenantSession');
+		const { requireTenantSessionAllowUnpaid } = await import('@/lib/auth/requireTenantSession');
 		const prismaMock = (await import('@/db/prisma')) as unknown as {
 			prisma: {
 				tenant: {
@@ -173,7 +173,7 @@ describe('POST /api/stripe/connect/onboard', () => {
 			};
 		};
 
-		vi.mocked(requireTenantSession).mockResolvedValue({
+		vi.mocked(requireTenantSessionAllowUnpaid).mockResolvedValue({
 			tenantId: 't1',
 			role: 'TENANT',
 			sub: 's1',

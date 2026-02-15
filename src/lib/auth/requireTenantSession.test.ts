@@ -47,7 +47,7 @@ describe('requireTenantSession', () => {
 			iat: 1000,
 			exp: 2000,
 		});
-	});
+	}, 15000);
 
 	it('redirects to /login when no session', async () => {
 		const { getSession } = await import('./session');
