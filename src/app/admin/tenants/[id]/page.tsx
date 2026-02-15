@@ -2,15 +2,23 @@ import { requireMasterAdminSession } from '@/lib/auth/requireMasterAdminSession'
 import { prisma } from '@/db/prisma';
 import { notFound, redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
+import { validateTenantSlug } from '@/lib/tenantSlug';
+import { BillingStatus, TenantStatus } from '@prisma/client';
 import Link from 'next/link';
 
 export const dynamic = 'force-dynamic';
 
-export default async function Page({ params }: { params: { id: string } }) {
+export default async function Page({
+	params,
+}: {
+	params: Promise<{ id: string }>;
+}) {
 	await requireMasterAdminSession();
 
+	const { id } = await params;
+
 	const tenant = await prisma.tenant.findUnique({
-		where: { id: params.id },
+		where: { id },
 		select: {
 			id: true,
 			slug: true,
@@ -29,50 +37,68 @@ export default async function Page({ params }: { params: { id: string } }) {
 		await requireMasterAdminSession();
 
 		const slug = formData.get('slug') as string;
-		const baseUrl = process.env.NEXT_PUBLIC_MAIN_DOMAIN || 'http://localhost:3000';
 
-		await fetch(`${baseUrl}/api/admin/tenants/${params.id}/slug`, {
-			method: 'PATCH',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ slug }),
-		});
+		const validation = validateTenantSlug(slug);
+		if (!validation.ok) {
+			throw new Error('INVALID_SLUG');
+		}
 
-		revalidatePath(`/admin/tenants/${params.id}`);
-		redirect(`/admin/tenants/${params.id}`);
+		try {
+			await prisma.tenant.update({
+				where: { id },
+				data: { slug },
+			});
+		} catch (err) {
+			if (err && typeof err === 'object' && 'code' in err && err.code === 'P2002') {
+				throw new Error('SLUG_TAKEN');
+			}
+			throw err;
+		}
+
+		revalidatePath(`/admin/tenants/${id}`);
+		redirect(`/admin/tenants/${id}`);
 	}
 
 	async function updateBillingStatus(formData: FormData) {
 		'use server';
 		await requireMasterAdminSession();
 
-		const billingStatus = formData.get('billingStatus') as string;
-		const baseUrl = process.env.NEXT_PUBLIC_MAIN_DOMAIN || 'http://localhost:3000';
+		const raw = formData.get('billingStatus') as string;
 
-		await fetch(`${baseUrl}/api/admin/tenants/${params.id}/billing-status`, {
-			method: 'PATCH',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ billingStatus }),
+		if (!Object.values(BillingStatus).includes(raw as BillingStatus)) {
+			throw new Error('INVALID_BILLING_STATUS');
+		}
+
+		const billingStatus = raw as BillingStatus;
+
+		await prisma.tenant.update({
+			where: { id },
+			data: { billingStatus },
 		});
 
-		revalidatePath(`/admin/tenants/${params.id}`);
-		redirect(`/admin/tenants/${params.id}`);
+		revalidatePath(`/admin/tenants/${id}`);
+		redirect(`/admin/tenants/${id}`);
 	}
 
 	async function updateStatus(formData: FormData) {
 		'use server';
 		await requireMasterAdminSession();
 
-		const status = formData.get('status') as string;
-		const baseUrl = process.env.NEXT_PUBLIC_MAIN_DOMAIN || 'http://localhost:3000';
+		const raw = formData.get('status') as string;
 
-		await fetch(`${baseUrl}/api/admin/tenants/${params.id}/status`, {
-			method: 'PATCH',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ status }),
+		if (!Object.values(TenantStatus).includes(raw as TenantStatus)) {
+			throw new Error('INVALID_STATUS');
+		}
+
+		const status = raw as TenantStatus;
+
+		await prisma.tenant.update({
+			where: { id },
+			data: { status },
 		});
 
-		revalidatePath(`/admin/tenants/${params.id}`);
-		redirect(`/admin/tenants/${params.id}`);
+		revalidatePath(`/admin/tenants/${id}`);
+		redirect(`/admin/tenants/${id}`);
 	}
 
 	return (
