@@ -24,6 +24,9 @@ export default async function Page({
 			slug: true,
 			status: true,
 			billingStatus: true,
+			storageUsedBytes: true,
+			storageLimitBytes: true,
+			storageEnforced: true,
 			createdAt: true,
 		},
 	});
@@ -31,6 +34,8 @@ export default async function Page({
 	if (!tenant) {
 		notFound();
 	}
+
+	const path = `/admin/tenants/${id}`;
 
 	async function updateSlug(formData: FormData) {
 		'use server';
@@ -55,8 +60,8 @@ export default async function Page({
 			throw err;
 		}
 
-		revalidatePath(`/admin/tenants/${id}`);
-		redirect(`/admin/tenants/${id}`);
+		revalidatePath(path);
+		redirect(path);
 	}
 
 	async function updateBillingStatus(formData: FormData) {
@@ -76,8 +81,8 @@ export default async function Page({
 			data: { billingStatus },
 		});
 
-		revalidatePath(`/admin/tenants/${id}`);
-		redirect(`/admin/tenants/${id}`);
+		revalidatePath(path);
+		redirect(path);
 	}
 
 	async function activateTenant() {
@@ -89,8 +94,8 @@ export default async function Page({
 			data: { status: TenantStatus.ACTIVE },
 		});
 
-		revalidatePath(`/admin/tenants/${id}`);
-		redirect(`/admin/tenants/${id}`);
+		revalidatePath(path);
+		redirect(path);
 	}
 
 	async function suspendTenant(formData: FormData) {
@@ -107,8 +112,8 @@ export default async function Page({
 			data: { status: TenantStatus.SUSPENDED },
 		});
 
-		revalidatePath(`/admin/tenants/${id}`);
-		redirect(`/admin/tenants/${id}`);
+		revalidatePath(path);
+		redirect(path);
 	}
 
 	async function deleteTenant(formData: FormData) {
@@ -125,8 +130,76 @@ export default async function Page({
 			data: { status: TenantStatus.DELETED },
 		});
 
-		revalidatePath(`/admin/tenants/${id}`);
-		redirect(`/admin/tenants/${id}`);
+		revalidatePath(path);
+		redirect(path);
+	}
+
+	async function updateStorageLimitBytes(formData: FormData) {
+		'use server';
+		await requireMasterAdminSession();
+
+		const raw = formData.get('storageLimitBytes');
+		const value = typeof raw === 'string' ? raw.trim() : '';
+		if (!/^\d+$/.test(value)) {
+			throw new Error('INVALID_STORAGE_LIMIT');
+		}
+
+		const limit = BigInt(value);
+		if (limit <= BigInt(0)) {
+			throw new Error('INVALID_STORAGE_LIMIT');
+		}
+
+		await prisma.tenant.update({
+			where: { id },
+			data: { storageLimitBytes: limit },
+		});
+
+		revalidatePath(path);
+		redirect(path);
+	}
+
+	async function updateStorageEnforced(formData: FormData) {
+		'use server';
+		await requireMasterAdminSession();
+
+		const raw = formData.get('storageEnforced');
+		if (raw !== 'true' && raw !== 'false') {
+			throw new Error('INVALID_STORAGE_ENFORCED');
+		}
+
+		const storageEnforced = raw === 'true';
+
+		await prisma.tenant.update({
+			where: { id },
+			data: { storageEnforced },
+		});
+
+		revalidatePath(path);
+		redirect(path);
+	}
+
+	async function adminRepairStorageUsedBytes(formData: FormData) {
+		'use server';
+		await requireMasterAdminSession();
+
+		const raw = formData.get('storageUsedBytes');
+		const value = typeof raw === 'string' ? raw.trim() : '';
+		if (!/^\d+$/.test(value)) {
+			throw new Error('INVALID_STORAGE_USED');
+		}
+
+		const used = BigInt(value);
+		if (used < BigInt(0)) {
+			throw new Error('INVALID_STORAGE_USED');
+		}
+
+		await prisma.tenant.update({
+			where: { id },
+			data: { storageUsedBytes: used },
+		});
+
+		revalidatePath(path);
+		redirect(path);
 	}
 
 	return (
@@ -149,8 +222,87 @@ export default async function Page({
 					<strong>Billing Status:</strong> {tenant.billingStatus}
 				</div>
 				<div>
+					<strong>Storage Used:</strong> {tenant.storageUsedBytes.toString()}
+				</div>
+				<div>
+					<strong>Storage Limit:</strong> {tenant.storageLimitBytes.toString()}
+				</div>
+				<div>
+					<strong>Storage Enforced:</strong>{' '}
+					{tenant.storageEnforced ? 'true' : 'false'}
+				</div>
+				<div>
 					<strong>Created At:</strong> {tenant.createdAt.toISOString()}
 				</div>
+			</div>
+
+			<div className="border border-gray-300 p-4 space-y-4">
+				<h2 className="text-xl font-bold">Storage</h2>
+				<div className="space-y-2">
+					<div>
+						<strong>Used:</strong> {tenant.storageUsedBytes.toString()}
+					</div>
+					<div>
+						<strong>Limit:</strong> {tenant.storageLimitBytes.toString()}
+					</div>
+					<div>
+						<strong>Enforced:</strong> {tenant.storageEnforced ? 'true' : 'false'}
+					</div>
+				</div>
+
+				<form action={updateStorageLimitBytes} className="space-y-2">
+					<input
+						type="number"
+						name="storageLimitBytes"
+						defaultValue={tenant.storageLimitBytes.toString()}
+						className="border border-gray-300 px-2 py-1 rounded"
+						required
+						min={1}
+						step={1}
+					/>
+					<button
+						type="submit"
+						className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+					>
+						Update Storage Limit
+					</button>
+				</form>
+
+				<form action={updateStorageEnforced} className="space-y-2">
+					<select
+						name="storageEnforced"
+						defaultValue={tenant.storageEnforced ? 'true' : 'false'}
+						className="border border-gray-300 px-2 py-1 rounded"
+						required
+					>
+						<option value="true">true</option>
+						<option value="false">false</option>
+					</select>
+					<button
+						type="submit"
+						className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+					>
+						Update Storage Enforcement
+					</button>
+				</form>
+
+				<form action={adminRepairStorageUsedBytes} className="space-y-2">
+					<input
+						type="number"
+						name="storageUsedBytes"
+						defaultValue={tenant.storageUsedBytes.toString()}
+						className="border border-gray-300 px-2 py-1 rounded"
+						required
+						min={0}
+						step={1}
+					/>
+					<button
+						type="submit"
+						className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+					>
+						Repair Storage Used
+					</button>
+				</form>
 			</div>
 
 			<div className="border border-gray-300 p-4 space-y-4">
