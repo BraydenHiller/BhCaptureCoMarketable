@@ -22,6 +22,19 @@ export async function requireTenantSession(): Promise<TenantSession> {
 		redirect('/login');
 	}
 
+	const { prisma } = await import("../../db/prisma");
+	const tenant = await prisma.tenant.findUnique({
+		where: { id: session.tenantId },
+	});
+
+	if (!tenant || tenant.status !== 'ACTIVE') {
+		redirect('/login');
+	}
+
+	if (tenant.billingStatus !== 'ACTIVE') {
+		redirect('/billing');
+	}
+
 	return {
 		sub: session.sub,
 		role: session.role,
