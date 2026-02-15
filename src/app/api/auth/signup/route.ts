@@ -5,6 +5,7 @@ import {
 	AdminCreateUserCommand,
 	AdminSetUserPasswordCommand,
 	AdminGetUserCommand,
+	AdminDeleteUserCommand,
 } from "@aws-sdk/client-cognito-identity-provider";
 import { createTenantSignup } from "@/db/signup";
 import { createSession } from "@/lib/auth/session";
@@ -32,18 +33,30 @@ export async function POST(request: NextRequest) {
 			new AdminCreateUserCommand({
 				UserPoolId: userPoolId,
 				Username: username,
+				MessageAction: "SUPPRESS",
+				TemporaryPassword: password,
 				UserAttributes: [{ Name: "email", Value: username }],
 			})
 		);
 
-		await client.send(
-			new AdminSetUserPasswordCommand({
-				UserPoolId: userPoolId,
-				Username: username,
-				Password: password,
-				Permanent: true,
-			})
-		);
+		try {
+			await client.send(
+				new AdminSetUserPasswordCommand({
+					UserPoolId: userPoolId,
+					Username: username,
+					Password: password,
+					Permanent: true,
+				})
+			);
+		} catch (setPasswordErr) {
+			await client.send(
+				new AdminDeleteUserCommand({
+					UserPoolId: userPoolId,
+					Username: username,
+				})
+			);
+			throw setPasswordErr;
+		}
 
 		const userResponse = await client.send(
 			new AdminGetUserCommand({
@@ -74,6 +87,20 @@ export async function POST(request: NextRequest) {
 			if (typeof digest === "string" && digest.startsWith("NEXT_REDIRECT")) {
 				throw err;
 			}
+		}
+
+		if (err && typeof err === "object" && "name" in err && err.name === "InvalidPasswordException") {
+			return NextResponse.json(
+				{ error: "Password does not meet policy" },
+				{ status: 400 }
+			);
+		}
+
+		if (err && typeof err === "object" && "name" in err && err.name === "UsernameExistsException") {
+			return NextResponse.json(
+				{ error: "Username already exists" },
+				{ status: 409 }
+			);
 		}
 
 		if (err instanceof Error && err.message === "TENANT_SLUG_TAKEN") {

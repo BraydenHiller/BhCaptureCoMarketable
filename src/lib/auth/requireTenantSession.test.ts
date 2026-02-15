@@ -18,10 +18,11 @@ describe('requireTenantSession', () => {
 
 	it('returns session when role is TENANT with tenantId', async () => {
 		const { prisma } = await import('../../db/prisma');
+		const slug = `test-tenant-${Date.now()}`;
 		const tenant = await prisma.tenant.create({
 			data: {
 				name: 'Test Tenant',
-				slug: 'test-tenant',
+				slug,
 				status: 'ACTIVE',
 				billingStatus: 'ACTIVE',
 			},
