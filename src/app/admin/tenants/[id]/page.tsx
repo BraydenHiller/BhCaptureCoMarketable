@@ -80,21 +80,49 @@ export default async function Page({
 		redirect(`/admin/tenants/${id}`);
 	}
 
-	async function updateStatus(formData: FormData) {
+	async function activateTenant() {
 		'use server';
 		await requireMasterAdminSession();
 
-		const raw = formData.get('status') as string;
+		await prisma.tenant.update({
+			where: { id },
+			data: { status: TenantStatus.ACTIVE },
+		});
 
-		if (!Object.values(TenantStatus).includes(raw as TenantStatus)) {
-			throw new Error('INVALID_STATUS');
+		revalidatePath(`/admin/tenants/${id}`);
+		redirect(`/admin/tenants/${id}`);
+	}
+
+	async function suspendTenant(formData: FormData) {
+		'use server';
+		await requireMasterAdminSession();
+
+		const confirmSuspend = formData.get('confirmSuspend');
+		if (!confirmSuspend) {
+			throw new Error('CONFIRM_REQUIRED');
 		}
-
-		const status = raw as TenantStatus;
 
 		await prisma.tenant.update({
 			where: { id },
-			data: { status },
+			data: { status: TenantStatus.SUSPENDED },
+		});
+
+		revalidatePath(`/admin/tenants/${id}`);
+		redirect(`/admin/tenants/${id}`);
+	}
+
+	async function deleteTenant(formData: FormData) {
+		'use server';
+		await requireMasterAdminSession();
+
+		const confirmDelete = formData.get('confirmDelete');
+		if (!confirmDelete) {
+			throw new Error('CONFIRM_REQUIRED');
+		}
+
+		await prisma.tenant.update({
+			where: { id },
+			data: { status: TenantStatus.DELETED },
 		});
 
 		revalidatePath(`/admin/tenants/${id}`);
@@ -169,24 +197,56 @@ export default async function Page({
 
 			<div className="border border-gray-300 p-4 space-y-4">
 				<h2 className="text-xl font-bold">Update Status</h2>
-				<form action={updateStatus} className="space-y-2">
-					<select
-						name="status"
-						defaultValue={tenant.status}
-						className="border border-gray-300 px-2 py-1 rounded"
-						required
-					>
-						<option value="ACTIVE">ACTIVE</option>
-						<option value="SUSPENDED">SUSPENDED</option>
-						<option value="DELETED">DELETED</option>
-					</select>
-					<button
-						type="submit"
-						className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-					>
-						Update Status
-					</button>
-				</form>
+				
+				<div className="space-y-4">
+					<form action={activateTenant} className="space-y-2">
+						<p className="text-sm text-gray-600">Set tenant status to ACTIVE</p>
+						<button
+							type="submit"
+							className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+						>
+							Activate Tenant
+						</button>
+					</form>
+
+					<form action={suspendTenant} className="space-y-2 border-t pt-4">
+						<p className="text-sm text-gray-600">Set tenant status to SUSPENDED</p>
+						<label className="flex items-center gap-2">
+							<input
+								type="checkbox"
+								name="confirmSuspend"
+								value="true"
+								className="w-4 h-4"
+							/>
+							<span className="text-sm">I confirm I want to suspend this tenant</span>
+						</label>
+						<button
+							type="submit"
+							className="bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600"
+						>
+							Suspend Tenant
+						</button>
+					</form>
+
+					<form action={deleteTenant} className="space-y-2 border-t pt-4">
+						<p className="text-sm text-gray-600">Set tenant status to DELETED</p>
+						<label className="flex items-center gap-2">
+							<input
+								type="checkbox"
+								name="confirmDelete"
+								value="true"
+								className="w-4 h-4"
+							/>
+							<span className="text-sm">I confirm I want to delete this tenant</span>
+						</label>
+						<button
+							type="submit"
+							className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+						>
+							Delete Tenant
+						</button>
+					</form>
+				</div>
 			</div>
 		</div>
 	);
