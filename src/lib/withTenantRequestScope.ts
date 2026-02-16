@@ -1,11 +1,13 @@
 import "server-only";
 import { requireRequestTenantId } from "@/lib/tenantRequest";
-import { runWithTenantScope } from "@/lib/requestScope";
+import { runWithTenantScope, getScopedTenantId } from "@/lib/requestScope";
 
 export async function withTenantRequestScope<T>(fn: (tenantId: string) => Promise<T>): Promise<T>;
 export async function withTenantRequestScope<T>(fn: () => Promise<T>): Promise<T>;
 export async function withTenantRequestScope<T>(fn: ((tenantId: string) => Promise<T>) | (() => Promise<T>)): Promise<T> {
-	const tenantId = await requireRequestTenantId();
+	// Prefer request-scoped tenantId (e.g., from session) before falling back to host-based resolution
+	const scopedTenantId = getScopedTenantId();
+	const tenantId = scopedTenantId ?? (await requireRequestTenantId());
 	return runWithTenantScope(tenantId, () => {
 		if (fn.length === 0) {
 			return (fn as () => Promise<T>)();
