@@ -41,6 +41,13 @@ enum BillingStatus {
   CANCELED
 }
 
+enum TenantDomainStatus {
+  PENDING_VERIFICATION
+  VERIFIED
+  ACTIVE
+  DISABLED
+}
+
 model Tenant {
   id                        String         @id @default(cuid())
   name                      String
@@ -57,6 +64,25 @@ model Tenant {
   memberships               Membership[]
   auditLogs                 AuditLog[]
   users                     User[]
+  domain                    TenantDomain?
+}
+
+model TenantDomain {
+  id                String             @id @default(cuid())
+  tenantId          String             @unique
+  hostname          String             @unique
+  status            TenantDomainStatus @default(PENDING_VERIFICATION)
+  verificationToken String             @unique
+  txtRecordName     String
+  txtRecordValue    String
+  verifiedAt        DateTime?
+  activatedAt       DateTime?
+  disabledAt        DateTime?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  tenant            Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([status])
 }
 
 model User {

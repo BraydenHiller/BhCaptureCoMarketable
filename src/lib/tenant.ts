@@ -1,3 +1,4 @@
+import { TenantDomainStatus } from '@prisma/client';
 import { prisma } from '../db/prisma';
 
 export type TenantContext = { tenantId: string; tenantSlug: string };
@@ -42,9 +43,39 @@ export function resolveTenantFromHost(host: string): string | null {
 }
 
 export async function requireTenantContext(input: { host?: string; headers?: Headers }): Promise<TenantContext> {
-	const host = input.host ?? input.headers?.get('host') ?? undefined;
+	const rawHost = input.host ?? input.headers?.get('host') ?? undefined;
+	if (!rawHost) {
+		throw new Error('Tenant required');
+	}
 
-	const tenantSlug = host ? resolveTenantFromHost(host) : null;
+	let normalizedHost = rawHost.trim().toLowerCase();
+	if (normalizedHost.startsWith('[')) {
+		const end = normalizedHost.indexOf(']');
+		if (end !== -1) {
+			normalizedHost = normalizedHost.slice(1, end);
+		}
+	} else {
+		normalizedHost = normalizedHost.split(':')[0];
+	}
+
+	normalizedHost = normalizedHost.trim().toLowerCase();
+	if (!normalizedHost) {
+		throw new Error('Tenant required');
+	}
+
+	const domainMatch = await prisma.tenantDomain.findUnique({
+		where: { hostname: normalizedHost },
+		select: { tenant: { select: { id: true, slug: true } }, status: true },
+	});
+
+	if (domainMatch && domainMatch.status !== TenantDomainStatus.DISABLED) {
+		if (!domainMatch.tenant) {
+			throw new Error('Tenant not found');
+		}
+		return { tenantId: domainMatch.tenant.id, tenantSlug: domainMatch.tenant.slug };
+	}
+
+	const tenantSlug = resolveTenantFromHost(normalizedHost);
 	if (!tenantSlug) {
 		throw new Error('Tenant required');
 	}
