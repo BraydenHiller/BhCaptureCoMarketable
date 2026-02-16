@@ -1,14 +1,17 @@
 import "server-only";
 import Link from 'next/link';
-import { withTenantRequestScope } from "@/lib/withTenantRequestScope";
 import { getRequestDb } from "@/db/requestDb";
-import { requireScopedTenantId } from "@/lib/requestScope";
+import { requireScopedTenantId, runWithTenantScope } from "@/lib/requestScope";
 import { getPhoto, deletePhoto } from "@/db/photo";
 import { notFound, redirect } from "next/navigation";
+import { requireMainDomain } from "@/lib/http/requireMainDomain";
+import { requireTenantSession } from "@/lib/auth/requireTenantSession";
 
 async function deletePhotoAction(galleryId: string, photoId: string) {
 	'use server';
-	return await withTenantRequestScope(async () => {
+	await requireMainDomain();
+	const session = await requireTenantSession();
+	return await runWithTenantScope(session.tenantId, async () => {
 		const tenantId = requireScopedTenantId();
 		const db = getRequestDb();
 		const photo = await getPhoto(photoId);
@@ -41,7 +44,9 @@ async function deletePhotoAction(galleryId: string, photoId: string) {
 }
 
 export default async function Page({ params }: { params: Promise<{ id: string; photoId: string }> }) {
-	return await withTenantRequestScope(async () => {
+	await requireMainDomain();
+	const session = await requireTenantSession();
+	return await runWithTenantScope(session.tenantId, async () => {
 		const { id, photoId } = await params;
 		const db = getRequestDb();
 		const tenantId = requireScopedTenantId();

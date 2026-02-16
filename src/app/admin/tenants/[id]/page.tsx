@@ -3,7 +3,7 @@ import { prisma } from '@/db/prisma';
 import { notFound, redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { validateTenantSlug } from '@/lib/tenantSlug';
-import { BillingStatus, TenantStatus, TenantDomainStatus } from '@prisma/client';
+import { BillingStatus, TenantStatus } from '@prisma/client';
 import Link from 'next/link';
 
 export const dynamic = 'force-dynamic';

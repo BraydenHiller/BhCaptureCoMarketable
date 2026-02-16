@@ -1,18 +1,21 @@
 import "server-only";
 import Link from 'next/link';
-import { withTenantRequestScope } from "@/lib/withTenantRequestScope";
 import { getRequestDb } from "@/db/requestDb";
-import { requireScopedTenantId } from "@/lib/requestScope";
+import { runWithTenantScope } from "@/lib/requestScope";
 import { notFound } from "next/navigation";
 import { listPhotos } from "@/db/photo";
+import { requireMainDomain } from "@/lib/http/requireMainDomain";
+import { requireTenantSession } from "@/lib/auth/requireTenantSession";
 
 type PageProps = { params: Promise<{ id: string }> };
 
 export default async function Page({ params }: PageProps) {
 	const { id } = await params;
-	return await withTenantRequestScope(async () => {
+	await requireMainDomain();
+	const session = await requireTenantSession();
+	return await runWithTenantScope(session.tenantId, async () => {
 		const db = getRequestDb();
-		const tenantId = requireScopedTenantId();
+		const tenantId = session.tenantId;
 
 		const gallery = await db.gallery.findUnique({
 			where: { id, tenantId },

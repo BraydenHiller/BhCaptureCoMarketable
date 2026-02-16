@@ -1,13 +1,16 @@
 import "server-only";
-import { withTenantRequestScope } from "@/lib/withTenantRequestScope";
 import { getRequestDb } from "@/db/requestDb";
-import { requireScopedTenantId } from "@/lib/requestScope";
+import { requireScopedTenantId, runWithTenantScope } from "@/lib/requestScope";
 import { preparePhotoUpload } from "@/lib/storage";
 import { notFound } from "next/navigation";
 import PhotoUploadForm from "@/components/PhotoUploadForm";
+import { requireMainDomain } from "@/lib/http/requireMainDomain";
+import { requireTenantSession } from "@/lib/auth/requireTenantSession";
 
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
-	return await withTenantRequestScope(async () => {
+	await requireMainDomain();
+	const session = await requireTenantSession();
+	return await runWithTenantScope(session.tenantId, async () => {
 		const { id } = await params;
 		const db = getRequestDb();
 		const tenantId = requireScopedTenantId();
@@ -25,7 +28,9 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
 			originalFilename: string;
 		}) {
 			'use server';
-			return await withTenantRequestScope(async () => {
+			await requireMainDomain();
+			const authSession = await requireTenantSession();
+			return await runWithTenantScope(authSession.tenantId, async () => {
 				const { galleryId, uploadSizeBytes, mimeType, originalFilename } = payload;
 				if (!galleryId || !Number.isFinite(uploadSizeBytes)) {
 					throw new Error('UPLOAD_SIZE_REQUIRED');
