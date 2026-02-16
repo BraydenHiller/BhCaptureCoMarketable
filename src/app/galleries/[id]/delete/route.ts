@@ -1,11 +1,14 @@
 import "server-only";
-import { withTenantRequestScope } from "@/lib/withTenantRequestScope";
 import { getRequestDb } from "@/db/requestDb";
-import { requireScopedTenantId } from "@/lib/requestScope";
+import { requireScopedTenantId, runWithTenantScope } from "@/lib/requestScope";
 import { NextRequest, NextResponse } from "next/server";
+import { requireMainDomain } from "@/lib/http/requireMainDomain";
+import { requireTenantSession } from "@/lib/auth/requireTenantSession";
 
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
-	return await withTenantRequestScope(async () => {
+	await requireMainDomain();
+	const session = await requireTenantSession();
+	return await runWithTenantScope(session.tenantId, async () => {
 		const db = getRequestDb();
 		const tenantId = requireScopedTenantId();
 

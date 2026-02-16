@@ -1,21 +1,28 @@
 import "server-only";
-import { withTenantRequestScope } from "@/lib/withTenantRequestScope";
 import { getRequestDb } from "@/db/requestDb";
-import { requireScopedTenantId } from "@/lib/requestScope";
+import { requireScopedTenantId, runWithTenantScope } from "@/lib/requestScope";
 import { getPhoto, updatePhoto } from "@/db/photo";
 import { notFound, redirect } from "next/navigation";
+import { requireMainDomain } from "@/lib/http/requireMainDomain";
+import { requireTenantSession } from "@/lib/auth/requireTenantSession";
 
 async function updatePhotoAction(photoId: string, formData: FormData) {
 	'use server';
-	const altText = formData.get('altText') as string;
-	const caption = formData.get('caption') as string;
-	const sortOrder = parseInt(formData.get('sortOrder') as string, 10);
-	await updatePhoto(photoId, { altText, caption, sortOrder });
-	redirect(`/galleries/${formData.get('galleryId')}`);
+	await requireMainDomain();
+	const session = await requireTenantSession();
+	return await runWithTenantScope(session.tenantId, async () => {
+		const altText = formData.get('altText') as string;
+		const caption = formData.get('caption') as string;
+		const sortOrder = parseInt(formData.get('sortOrder') as string, 10);
+		await updatePhoto(photoId, { altText, caption, sortOrder });
+		redirect(`/galleries/${formData.get('galleryId')}`);
+	});
 }
 
 export default async function Page({ params }: { params: Promise<{ id: string; photoId: string }> }) {
-	return await withTenantRequestScope(async () => {
+	await requireMainDomain();
+	const session = await requireTenantSession();
+	return await runWithTenantScope(session.tenantId, async () => {
 		const { id, photoId } = await params;
 		const db = getRequestDb();
 		const tenantId = requireScopedTenantId();
