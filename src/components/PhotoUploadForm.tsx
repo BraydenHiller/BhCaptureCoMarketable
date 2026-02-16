@@ -2,7 +2,26 @@
 
 import { useState } from 'react';
 
-export default function PhotoUploadForm({ uploadUrl, photoId, galleryId }: { uploadUrl: string; photoId: string; galleryId: string }) {
+type UploadAuthorizationRequest = {
+	galleryId: string;
+	uploadSizeBytes: number;
+	mimeType: string;
+	originalFilename: string;
+};
+
+type UploadAuthorizationResponse = {
+	uploadUrl: string;
+	photoId: string;
+	storageKey: string;
+};
+
+export default function PhotoUploadForm({
+	galleryId,
+	requestUpload,
+}: {
+	galleryId: string;
+	requestUpload: (payload: UploadAuthorizationRequest) => Promise<UploadAuthorizationResponse>;
+}) {
 	const [file, setFile] = useState<File | null>(null);
 	const [uploading, setUploading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
@@ -13,9 +32,15 @@ export default function PhotoUploadForm({ uploadUrl, photoId, galleryId }: { upl
 		setUploading(true);
 		setError(null);
 		try {
+			const uploadAuth = await requestUpload({
+				galleryId,
+				uploadSizeBytes: file.size,
+				mimeType: file.type,
+				originalFilename: file.name,
+			});
 			const formData = new FormData();
 			formData.append('file', file);
-			const uploadRes = await fetch(uploadUrl, { method: 'PUT', body: formData });
+			const uploadRes = await fetch(uploadAuth.uploadUrl, { method: 'PUT', body: formData });
 			if (!uploadRes.ok) throw new Error('Upload failed');
 
 			const bytes = file.size;
@@ -31,16 +56,23 @@ export default function PhotoUploadForm({ uploadUrl, photoId, galleryId }: { upl
 				height = img.height;
 			}
 
-			const finalizeRes = await fetch(`/galleries/${galleryId}/photos/${photoId}/finalize`, {
+			const finalizeRes = await fetch(
+				`/galleries/${galleryId}/photos/${uploadAuth.photoId}/finalize`,
+				{
 				method: 'POST',
 				body: JSON.stringify({ bytes, width, height }),
 				headers: { 'Content-Type': 'application/json' },
-			});
+				}
+			);
 			if (!finalizeRes.ok) throw new Error('Finalize failed');
 
 			window.location.href = `/galleries/${galleryId}`;
 		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Unknown error');
+			if (err instanceof Error && err.message === 'STORAGE_QUOTA_EXCEEDED') {
+				setError('Storage quota exceeded.');
+			} else {
+				setError(err instanceof Error ? err.message : 'Unknown error');
+			}
 		} finally {
 			setUploading(false);
 		}
