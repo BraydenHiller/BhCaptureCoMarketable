@@ -1,5 +1,4 @@
 import type { Photo } from '@prisma/client';
-import { updatePhoto } from "@/db/photo";
 import { requireScopedTenantId } from "@/lib/requestScope";
 import { getRequestDb } from "@/db/requestDb";
 import { tenantPhotoKey } from "@/lib/storage/s3";
@@ -65,5 +64,53 @@ export async function finalizePhotoUpload(
 	id: string,
 	metadata: { bytes: number; width: number; height: number }
 ): Promise<Photo> {
-	return updatePhoto(id, metadata);
+	const db = getRequestDb();
+	const tenantId = requireScopedTenantId();
+	const bytes = metadata.bytes;
+
+	if (!Number.isFinite(bytes) || !Number.isInteger(bytes) || bytes < 0) {
+		throw new Error('INVALID_BYTES');
+	}
+
+	return db.$transaction(async (tx) => {
+		const existing = await tx.photo.findUnique({
+			where: { id, tenantId },
+			select: { tenantId: true, bytes: true },
+		});
+
+		if (!existing) {
+			throw new Error('PHOTO_NOT_FOUND');
+		}
+
+		const updated = await tx.photo.update({
+			where: { id, tenantId },
+			data: metadata,
+		});
+
+		const previousBytes = existing.bytes ?? null;
+		const delta = previousBytes === null ? bytes : bytes - previousBytes;
+
+		if (delta !== 0) {
+			const tenant = await tx.tenant.findUnique({
+				where: { id: existing.tenantId },
+				select: { storageUsedBytes: true },
+			});
+
+			if (!tenant) {
+				throw new Error('TENANT_NOT_FOUND');
+			}
+
+			let nextStorageUsed = tenant.storageUsedBytes + BigInt(delta);
+			if (nextStorageUsed < BigInt(0)) {
+				nextStorageUsed = BigInt(0);
+			}
+
+			await tx.tenant.update({
+				where: { id: existing.tenantId },
+				data: { storageUsedBytes: nextStorageUsed },
+			});
+		}
+
+		return updated;
+	});
 }
