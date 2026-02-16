@@ -6,13 +6,16 @@ import { requireScopedTenantId } from "@/lib/requestScope";
 import { notFound } from "next/navigation";
 import { listPhotos } from "@/db/photo";
 
-export default async function Page({ params }: { params: { id: string } }) {
+type PageProps = { params: Promise<{ id: string }> };
+
+export default async function Page({ params }: PageProps) {
+	const { id } = await params;
 	return await withTenantRequestScope(async () => {
 		const db = getRequestDb();
 		const tenantId = requireScopedTenantId();
 
 		const gallery = await db.gallery.findUnique({
-			where: { id: params.id, tenantId },
+			where: { id, tenantId },
 		});
 
 		if (!gallery) {

@@ -99,7 +99,9 @@ describe('storage service', () => {
 			}),
 		});
 		expect(result.photo).toBe(mockPhoto);
-		expect(result.uploadUrl).toContain('dev-storage.example.com/upload/tenant/t1/gallery/g1/photo/photo-uuid/example.jpg');
+		expect(result.uploadUrl).toContain('/api/storage/dev/upload/');
+		expect(result.uploadUrl).toContain(encodeURIComponent('tenant/t1/gallery/g1/photo/photo-uuid/example.jpg'));
+		expect(result.uploadUrl).toContain('sig=');
 		expect(result.photoId).toBe('photo-uuid');
 		expect(result.storageKey).toBe(mockPhoto.storageKey);
 		uuidSpy.mockRestore();
@@ -109,9 +111,9 @@ describe('storage service', () => {
 		const url1 = generateUploadUrl('t1/g1/key1');
 		const url2 = generateUploadUrl('t1/g1/key2');
 
-		expect(url1).toContain('t1/g1/key1');
+		expect(url1).toContain(encodeURIComponent('t1/g1/key1'));
 		expect(url1).toContain('sig=');
-		expect(url2).toContain('t1/g1/key2');
+		expect(url2).toContain(encodeURIComponent('t1/g1/key2'));
 		expect(url2).toContain('sig=');
 		expect(url1).not.toBe(url2);
 	});

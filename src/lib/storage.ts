@@ -57,7 +57,7 @@ export async function preparePhotoUpload(
 export function generateUploadUrl(storageKey: string): string {
 	// Development signer: deterministic signature based on key
 	const signature = btoa(storageKey).slice(0, 16);
-	return `https://dev-storage.example.com/upload/${storageKey}?sig=${signature}`;
+	return `/api/storage/dev/upload/${encodeURIComponent(storageKey)}?sig=${encodeURIComponent(signature)}`;
 }
 
 export async function finalizePhotoUpload(
