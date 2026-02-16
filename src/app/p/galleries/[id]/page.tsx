@@ -13,6 +13,7 @@ type PageProps = {
 
 export default async function Page({ params, searchParams }: PageProps) {
 	const { id } = await params;
+	const galleryId = id;
 	const directParam = searchParams?.direct;
 	const errorParam = searchParams?.error;
 	const isDirect = directParam === '1';
@@ -22,7 +23,7 @@ export default async function Page({ params, searchParams }: PageProps) {
 		const db = getRequestDb();
 		const tenantId = requireScopedTenantId();
 		const gallery = await db.gallery.findUnique({
-			where: { id, tenantId },
+			where: { id: galleryId, tenantId },
 			select: {
 				id: true,
 				name: true,
@@ -36,63 +37,64 @@ export default async function Page({ params, searchParams }: PageProps) {
 		if (!gallery) {
 			notFound();
 		}
+		const galleryData = gallery;
 
 		async function signInClient(formData: FormData) {
 			'use server';
 			const direct = formData.get('direct') === '1';
 			const usernameInput = (formData.get('username') as string | null) ?? '';
 			const passwordInput = (formData.get('password') as string | null) ?? '';
-			const nextUrl = direct ? `/p/galleries/${gallery.id}?direct=1` : `/p/galleries/${gallery.id}`;
+			const nextUrl = direct ? `/p/galleries/${galleryId}?direct=1` : `/p/galleries/${galleryId}`;
 			const errorUrl = direct
-				? `/p/galleries/${gallery.id}?direct=1&error=INVALID_CREDENTIALS`
-				: `/p/galleries/${gallery.id}?error=INVALID_CREDENTIALS`;
+				? `/p/galleries/${galleryId}?direct=1&error=INVALID_CREDENTIALS`
+				: `/p/galleries/${galleryId}?error=INVALID_CREDENTIALS`;
 
-			if (!gallery.clientPasswordHash) {
+			if (!galleryData.clientPasswordHash) {
 				redirect(errorUrl);
 			}
 
 			if (!direct) {
-				const usernameOk = verifyClientUsername(usernameInput, gallery.clientUsername ?? '');
+				const usernameOk = verifyClientUsername(usernameInput, galleryData.clientUsername ?? '');
 				if (!usernameOk) {
 					redirect(errorUrl);
 				}
 			}
 
-			const passwordOk = await verifyClientPassword(passwordInput, gallery.clientPasswordHash);
+			const passwordOk = await verifyClientPassword(passwordInput, galleryData.clientPasswordHash);
 			if (!passwordOk) {
 				redirect(errorUrl);
 			}
 
-			await createClientGallerySession({ tenantId, galleryId: gallery.id });
+			await createClientGallerySession({ tenantId, galleryId });
 			redirect(nextUrl);
 		}
 
 		async function signOutClient(formData: FormData) {
 			'use server';
 			const direct = formData.get('direct') === '1';
-			const nextUrl = direct ? `/p/galleries/${gallery.id}?direct=1` : `/p/galleries/${gallery.id}`;
+			const nextUrl = direct ? `/p/galleries/${galleryId}?direct=1` : `/p/galleries/${galleryId}`;
 			await clearClientGallerySession();
 			redirect(nextUrl);
 		}
 
-		if (gallery.accessMode === 'PUBLIC') {
+		if (galleryData.accessMode === 'PUBLIC') {
 			return (
 				<div className="space-y-4">
-					<h1 className="text-2xl font-bold">{gallery.name}</h1>
-					<p className="text-sm text-gray-600">Created: {gallery.createdAt.toLocaleString()}</p>
+					<h1 className="text-2xl font-bold">{galleryData.name}</h1>
+					<p className="text-sm text-gray-600">Created: {galleryData.createdAt.toLocaleString()}</p>
 					<p>Photos coming soon.</p>
 				</div>
 			);
 		}
 
 		const session = await getClientGallerySession();
-		const isValid = isClientSessionValid(session, tenantId, gallery.id);
+		const isValid = isClientSessionValid(session, tenantId, galleryId);
 
 		if (isValid) {
 			return (
 				<div className="space-y-4">
-					<h1 className="text-2xl font-bold">{gallery.name}</h1>
-					<p className="text-sm text-gray-600">Created: {gallery.createdAt.toLocaleString()}</p>
+					<h1 className="text-2xl font-bold">{galleryData.name}</h1>
+					<p className="text-sm text-gray-600">Created: {galleryData.createdAt.toLocaleString()}</p>
 					<p>Photos coming soon.</p>
 					<form action={signOutClient}>
 						<input type="hidden" name="direct" value={isDirect ? '1' : '0'} />
@@ -104,7 +106,7 @@ export default async function Page({ params, searchParams }: PageProps) {
 
 		return (
 			<div className="space-y-4">
-				<h1 className="text-2xl font-bold">{gallery.name}</h1>
+				<h1 className="text-2xl font-bold">{galleryData.name}</h1>
 				<p className="text-sm text-gray-600">This gallery is private.</p>
 				{errorMessage ? <p className="text-sm text-red-600">{errorMessage}</p> : null}
 				<form action={signInClient} className="space-y-3">
