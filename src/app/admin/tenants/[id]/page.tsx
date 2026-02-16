@@ -3,7 +3,7 @@ import { prisma } from '@/db/prisma';
 import { notFound, redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { validateTenantSlug } from '@/lib/tenantSlug';
-import { BillingStatus, TenantStatus } from '@prisma/client';
+import { BillingStatus, TenantStatus, TenantDomainStatus } from '@prisma/client';
 import Link from 'next/link';
 
 export const dynamic = 'force-dynamic';
@@ -34,6 +34,10 @@ export default async function Page({
 	if (!tenant) {
 		notFound();
 	}
+
+	const tenantDomain = await prisma.tenantDomain.findUnique({
+		where: { tenantId: id },
+	});
 
 	const path = `/admin/tenants/${id}`;
 
@@ -202,6 +206,23 @@ export default async function Page({
 		redirect(path);
 	}
 
+	async function forceRemoveTenantDomain(formData: FormData) {
+		'use server';
+		await requireMasterAdminSession();
+
+		const confirmDomainDelete = formData.get('confirmDomainDelete');
+		if (!confirmDomainDelete) {
+			throw new Error('CONFIRM_REQUIRED');
+		}
+
+		await prisma.tenantDomain.delete({
+			where: { tenantId: id },
+		});
+
+		revalidatePath(path);
+		redirect(path);
+	}
+
 	return (
 		<div className="space-y-4">
 			<Link href="/admin/tenants" className="text-blue-600 hover:underline">
@@ -345,6 +366,49 @@ export default async function Page({
 						Update Billing Status
 					</button>
 				</form>
+			</div>
+
+			<div className="border border-gray-300 p-4 space-y-4">
+				<h2 className="text-xl font-bold">Custom Domain</h2>
+				{!tenantDomain ? (
+					<p className="text-gray-600">No custom domain configured.</p>
+				) : (
+					<div className="space-y-2">
+						<div>
+							<strong>Hostname:</strong> {tenantDomain.hostname}
+						</div>
+						<div>
+							<strong>Status:</strong> {tenantDomain.status}
+						</div>
+						<div>
+							<strong>Verified At:</strong> {tenantDomain.verifiedAt ? tenantDomain.verifiedAt.toISOString() : '—'}
+						</div>
+						<div>
+							<strong>Activated At:</strong> {tenantDomain.activatedAt ? tenantDomain.activatedAt.toISOString() : '—'}
+						</div>
+						<div>
+							<strong>Disabled At:</strong> {tenantDomain.disabledAt ? tenantDomain.disabledAt.toISOString() : '—'}
+						</div>
+						<form action={forceRemoveTenantDomain} className="space-y-2 border-t pt-4">
+							<p className="text-sm text-gray-600">Permanently remove this tenant domain</p>
+							<label className="flex items-center gap-2">
+								<input
+									type="checkbox"
+									name="confirmDomainDelete"
+									value="true"
+									className="w-4 h-4"
+								/>
+								<span className="text-sm">I confirm I want to remove this domain</span>
+							</label>
+							<button
+								type="submit"
+								className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+							>
+								Force Remove Domain
+							</button>
+						</form>
+					</div>
+				)}
 			</div>
 
 			<div className="border border-gray-300 p-4 space-y-4">
