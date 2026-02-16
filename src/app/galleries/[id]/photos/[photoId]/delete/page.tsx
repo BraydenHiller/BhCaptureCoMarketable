@@ -8,8 +8,36 @@ import { notFound, redirect } from "next/navigation";
 
 async function deletePhotoAction(galleryId: string, photoId: string) {
 	'use server';
-	await deletePhoto(photoId);
-	redirect(`/galleries/${galleryId}`);
+	return await withTenantRequestScope(async () => {
+		const tenantId = requireScopedTenantId();
+		const db = getRequestDb();
+		const photo = await getPhoto(photoId);
+		if (!photo) {
+			redirect(`/galleries/${galleryId}`);
+		}
+		const bytes = photo.bytes ?? 0;
+		if (bytes < 0 || !Number.isFinite(bytes)) {
+			throw new Error('INVALID_BYTES');
+		}
+		await deletePhoto(photoId);
+		if (bytes > 0) {
+			const tenant = await db.tenant.findUnique({
+				where: { id: tenantId },
+				select: { storageUsedBytes: true },
+			});
+			if (tenant) {
+				let nextStorageUsed = tenant.storageUsedBytes - BigInt(bytes);
+				if (nextStorageUsed < BigInt(0)) {
+					nextStorageUsed = BigInt(0);
+				}
+				await db.tenant.update({
+					where: { id: tenantId },
+					data: { storageUsedBytes: nextStorageUsed },
+				});
+			}
+		}
+		redirect(`/galleries/${galleryId}`);
+	});
 }
 
 export default async function Page({ params }: { params: Promise<{ id: string; photoId: string }> }) {
