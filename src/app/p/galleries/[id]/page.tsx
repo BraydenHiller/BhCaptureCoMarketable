@@ -2,9 +2,11 @@ import "server-only";
 import { withTenantRequestScope } from "@/lib/withTenantRequestScope";
 import { getRequestDb } from "@/db/requestDb";
 import { requireScopedTenantId } from "@/lib/requestScope";
+import { listPhotos } from "@/db/photo";
 import { notFound, redirect } from "next/navigation";
 import { getClientGallerySession, createClientGallerySession, clearClientGallerySession } from "@/lib/auth/clientGallerySession";
 import { isClientSessionValid, verifyClientPassword, verifyClientUsername } from "@/lib/galleryClientAuth";
+import SelectionClient from "./SelectionClient";
 
 type PageProps = {
 	params: Promise<{ id: string }>;
@@ -31,6 +33,7 @@ export default async function Page({ params, searchParams }: PageProps) {
 				clientUsername: true,
 				clientPasswordHash: true,
 				createdAt: true,
+				maxSelections: true,
 			},
 		});
 
@@ -91,11 +94,19 @@ export default async function Page({ params, searchParams }: PageProps) {
 		const isValid = isClientSessionValid(session, tenantId, galleryId);
 
 		if (isValid) {
+			const photos = await listPhotos(galleryId);
+			const clientPhotos = photos.map((p) => ({
+				id: p.id,
+				caption: p.caption,
+				altText: p.altText,
+				sortOrder: p.sortOrder,
+			}));
+
 			return (
 				<div className="space-y-4">
 					<h1 className="text-2xl font-bold">{galleryData.name}</h1>
 					<p className="text-sm text-gray-600">Created: {galleryData.createdAt.toLocaleString()}</p>
-					<p>Photos coming soon.</p>
+					<SelectionClient galleryId={galleryId} photos={clientPhotos} maxSelections={galleryData.maxSelections} />
 					<form action={signOutClient}>
 						<input type="hidden" name="direct" value={isDirect ? '1' : '0'} />
 						<button type="submit" className="border px-3 py-1 rounded">Sign out</button>
