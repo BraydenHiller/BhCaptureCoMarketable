@@ -30,6 +30,11 @@ async function updateGallery(id: string, formData: FormData) {
 			existingPasswordHash: existing.clientPasswordHash,
 			requirePassword: false,
 		});
+
+		const rawMax = formData.get("maxSelections") as string | null;
+		const parsedMax = rawMax ? parseInt(rawMax, 10) : NaN;
+		const maxSelections = access.accessMode === "PRIVATE" && !isNaN(parsedMax) && parsedMax >= 0 ? parsedMax : null;
+
 		await db.gallery.update({
 			where: { id, tenantId },
 			data: {
@@ -37,6 +42,7 @@ async function updateGallery(id: string, formData: FormData) {
 				accessMode: access.accessMode,
 				clientUsername: access.clientUsername,
 				clientPasswordHash: access.clientPasswordHash,
+				maxSelections,
 			},
 		});
 		redirect(`/galleries/${id}`);
@@ -101,6 +107,18 @@ export default async function Page({ params }: { params: { id: string } }) {
 							type="password"
 							id="clientPassword"
 							name="clientPassword"
+							className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+						/>
+					</div>
+					<div>
+						<label htmlFor="maxSelections" className="block text-sm font-medium text-gray-700">Max Selections (PRIVATE only)</label>
+						<input
+							type="number"
+							id="maxSelections"
+							name="maxSelections"
+							min={0}
+							step={1}
+							defaultValue={gallery.maxSelections ?? ''}
 							className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
 						/>
 					</div>
