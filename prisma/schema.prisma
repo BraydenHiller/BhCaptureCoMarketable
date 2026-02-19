@@ -53,6 +53,16 @@ enum GalleryAccessMode {
   PUBLIC
 }
 
+enum GalleryProofingStatus {
+  PENDING
+  SUBMITTED
+}
+
+enum SelectionStatus {
+  DRAFT
+  SUBMITTED
+}
+
 model Tenant {
   id                        String         @id @default(cuid())
   name                      String
@@ -145,12 +155,48 @@ model Gallery {
   accessMode         GalleryAccessMode @default(PRIVATE)
   clientUsername     String?
   clientPasswordHash String?
+  maxSelections      Int?
+  proofingStatus     GalleryProofingStatus @default(PENDING)
   createdAt DateTime @default(now())
   photos    Photo[]
+  selections ProofSelection[]
 
   @@index([tenantId])
   @@index([tenantId, createdAt])
   @@index([accessMode])
+}
+
+model ProofSelection {
+  id             String          @id @default(cuid())
+  tenantId       String
+  galleryId      String
+  clientUsername String
+  status         SelectionStatus @default(DRAFT)
+  submittedAt    DateTime?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  gallery        Gallery         @relation(fields: [galleryId], references: [id], onDelete: Cascade)
+  items          ProofSelectionItem[]
+
+  @@unique([galleryId, clientUsername])
+  @@index([tenantId, galleryId])
+  @@index([tenantId, status, createdAt])
+}
+
+model ProofSelectionItem {
+  id          String   @id @default(cuid())
+  tenantId    String
+  selectionId String
+  photoId     String
+  note        String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  selection   ProofSelection @relation(fields: [selectionId], references: [id], onDelete: Cascade)
+  photo       Photo          @relation(fields: [photoId], references: [id], onDelete: Cascade)
+
+  @@unique([selectionId, photoId])
+  @@index([tenantId, selectionId])
+  @@index([tenantId, photoId])
 }
 
 model Photo {
@@ -169,6 +215,7 @@ model Photo {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
   gallery           Gallery  @relation(fields: [galleryId], references: [id], onDelete: Cascade)
+  proofSelectionItems ProofSelectionItem[]
 
   @@index([tenantId, galleryId])
   @@index([tenantId, createdAt])
