@@ -7,6 +7,8 @@ vi.mock('../../db/prisma', () => {
 				findUnique: vi.fn().mockResolvedValue({
 					id: 'test-tenant-id',
 					name: 'Test Tenant',
+					status: 'ACTIVE',
+					billingStatus: 'ACTIVE',
 				}),
 			},
 		},
