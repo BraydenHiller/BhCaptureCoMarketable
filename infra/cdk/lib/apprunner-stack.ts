@@ -12,6 +12,7 @@ interface AppRunnerStackProps extends cdk.StackProps {
   region?: string;
   mainDomain?: string;
   cognitoAppClientId?: string;
+  platformS3Bucket?: string;
 }
 
 export class AppRunnerStack extends cdk.Stack {
@@ -51,14 +52,19 @@ export class AppRunnerStack extends cdk.Stack {
     const dbSecretArn = cdk.Fn.importValue(
       `BhCaptureCo-DbSecretArn-${props.environment}`
     );
-    const databaseUrl = cdk.Fn.importValue(
-      `BhCaptureCo-DatabaseUrl-${props.environment}`
+    const databaseUrlSecretArn = cdk.Fn.importValue(
+      `BhCaptureCo-DatabaseUrlV2-SecretArn-${props.environment}`
     );
 
     const dbSecret = secretsmanager.Secret.fromSecretCompleteArn(
       this,
       "DbSecret",
       dbSecretArn
+    );
+    const databaseUrlSecret = secretsmanager.Secret.fromSecretNameV2(
+      this,
+      "DatabaseUrlSecret",
+      `bhcaptureco/database-url-v2/${props.environment}`
     );
     const authSessionSecret = secretsmanager.Secret.fromSecretNameV2(
       this,
@@ -85,14 +91,14 @@ export class AppRunnerStack extends cdk.Stack {
 
     // Grant instance role permission to read secrets
     authSessionSecret.grantRead(instanceRole);
+    databaseUrlSecret.grantRead(instanceRole);
 
     // Conditionally create App Runner Service
     if (deployService) {
       // Create App Runner Service
       // Environment variables:
-      //   - NODE_ENV, AWS_REGION, NEXT_PUBLIC_MAIN_DOMAIN, COGNITO_APP_CLIENT_ID: from CDK props (plain text)
-      //   - AUTH_SESSION_SECRET: from Secrets Manager (via instanceRole)
-      //   - DATABASE_URL: from DataStack export (plain text, staging only)
+      //   - NODE_ENV, AWS_REGION, COGNITO_APP_CLIENT_ID, NEXT_PUBLIC_MAIN_DOMAIN, MAIN_DOMAIN, PLATFORM_S3_BUCKET, APP_ENV: plain text
+      //   - DATABASE_URL, AUTH_SESSION_SECRET: from Secrets Manager (via instanceRole)
       const appRunnerService = new apprunner.CfnService(this, "AppRunnerService", {
         serviceName: `bhcaptureco-${props.environment}`,
         sourceConfiguration: {
@@ -115,10 +121,6 @@ export class AppRunnerStack extends cdk.Stack {
                   value: this.region,
                 },
                 {
-                  name: "DATABASE_URL",
-                  value: databaseUrl,
-                },
-                {
                   name: "COGNITO_APP_CLIENT_ID",
                   value: props.cognitoAppClientId || "not-set",
                 },
@@ -126,8 +128,24 @@ export class AppRunnerStack extends cdk.Stack {
                   name: "NEXT_PUBLIC_MAIN_DOMAIN",
                   value: props.mainDomain || "not-set",
                 },
+                {
+                  name: "MAIN_DOMAIN",
+                  value: props.mainDomain || "not-set",
+                },
+                {
+                  name: "PLATFORM_S3_BUCKET",
+                  value: props.platformS3Bucket || "not-set",
+                },
+                {
+                  name: "APP_ENV",
+                  value: "production",
+                },
               ],
               runtimeEnvironmentSecrets: [
+                {
+                  name: "DATABASE_URL",
+                  value: databaseUrlSecretArn,
+                },
                 {
                   name: "AUTH_SESSION_SECRET",
                   value: authSessionSecret.secretArn,
