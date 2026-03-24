@@ -83,7 +83,7 @@ jobs:
       - name: Deploy to staging
         run: |
           cd infra/cdk
-          npm run cdk:deploy:staging -- NetworkStack-staging DataStack-staging
+          npx cdk deploy NetworkStack-staging DataStack-staging --context environment=staging --require-approval never
         env:
           DEPLOY_ENV: staging
 
