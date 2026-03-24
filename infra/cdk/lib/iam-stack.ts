@@ -13,12 +13,9 @@ export class IamStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: IamStackProps) {
     super(scope, id, props);
 
-    // Get or create GitHub OIDC provider
-    const provider = new iam.OpenIdConnectProvider(this, "GitHubProvider", {
-      url: "https://token.actions.githubusercontent.com",
-      clientIds: ["sts.amazonaws.com"],
-      thumbprints: ["6938fd4d98bab03faadb97b34396831e3780aea1"],
-    });
+    // Import existing GitHub OIDC provider
+    const providerArn = `arn:aws:iam::${this.account}:oidc-provider/token.actions.githubusercontent.com`;
+    const provider = iam.OpenIdConnectProvider.fromOpenIdConnectProviderArn(this, "GitHubProvider", providerArn);
 
     // Create deployment role
     const deployRole = new iam.Role(this, "GitHubDeployRole", {
