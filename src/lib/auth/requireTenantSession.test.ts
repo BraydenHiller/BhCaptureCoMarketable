@@ -1,5 +1,18 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
+vi.mock('../../db/prisma', () => {
+	return {
+		prisma: {
+			tenant: {
+				findUnique: vi.fn().mockResolvedValue({
+					id: 'test-tenant-id',
+					name: 'Test Tenant',
+				}),
+			},
+		},
+	};
+});
+
 vi.mock('./session', () => ({
 	getSession: vi.fn(),
 }));
