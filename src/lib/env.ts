@@ -16,21 +16,34 @@ const clientSchema = z.object({
 	NEXT_PUBLIC_APP_URL: z.string().url().default('http://localhost:3000'),
 });
 
-const parsedServer = serverEnvSchema.parse({
-	APP_ENV: process.env.APP_ENV,
-	DATABASE_URL: process.env.DATABASE_URL,
-	AUTH_SESSION_SECRET: process.env.AUTH_SESSION_SECRET,
-	AWS_REGION: process.env.AWS_REGION,
-	PLATFORM_S3_BUCKET: process.env.PLATFORM_S3_BUCKET,
-	COGNITO_APP_CLIENT_ID: process.env.COGNITO_APP_CLIENT_ID,
-	MAIN_DOMAIN: process.env.MAIN_DOMAIN,
-});
+type Env = z.infer<typeof serverEnvSchema> & z.infer<typeof clientSchema>;
 
-const parsedClient = clientSchema.parse({
-	NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
-});
+let _env: Env | undefined;
 
-export const env = {
-	...parsedServer,
-	...parsedClient,
-};
+function getEnv(): Env {
+	if (!_env) {
+		const parsedServer = serverEnvSchema.parse({
+			APP_ENV: process.env.APP_ENV,
+			DATABASE_URL: process.env.DATABASE_URL,
+			AUTH_SESSION_SECRET: process.env.AUTH_SESSION_SECRET,
+			AWS_REGION: process.env.AWS_REGION,
+			PLATFORM_S3_BUCKET: process.env.PLATFORM_S3_BUCKET,
+			COGNITO_APP_CLIENT_ID: process.env.COGNITO_APP_CLIENT_ID,
+			MAIN_DOMAIN: process.env.MAIN_DOMAIN,
+		});
+
+		const parsedClient = clientSchema.parse({
+			NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+		});
+
+		_env = { ...parsedServer, ...parsedClient };
+	}
+	return _env;
+}
+
+export const env: Env = new Proxy({} as Env, {
+	get(_target, prop, receiver) {
+		const resolved = getEnv();
+		return Reflect.get(resolved, prop, receiver);
+	},
+});
