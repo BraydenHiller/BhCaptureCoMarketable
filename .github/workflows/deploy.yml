@@ -83,7 +83,7 @@ jobs:
       - name: Deploy to staging
         run: |
           cd infra/cdk
-          npx cdk deploy bhcaptureco-staging-network bhcaptureco-staging-data bhcaptureco-staging-apprunner --context environment=staging --require-approval never
+          npx cdk deploy BhCaptureCoIam bhcaptureco-staging-network bhcaptureco-staging-data bhcaptureco-staging-apprunner --context environment=staging --require-approval never
         env:
           DEPLOY_ENV: staging
 
