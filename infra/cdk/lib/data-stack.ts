@@ -58,8 +58,41 @@ export class DataStack extends cdk.Stack {
 
     this.dbUrl = new cdk.CfnOutput(this, "DatabaseUrl", {
       value: `postgresql://***:***@${database.dbInstanceEndpointAddress}:5432/${dbName}`,
-      description: "Database connection URL (credentials in Secrets Manager)",
+      description: "Database connection URL (placeholder – do not change while imported)",
       exportName: `BhCaptureCo-DatabaseUrl-${props.environment}`,
+    });
+
+    const databaseUrlV2 = cdk.Fn.sub(
+      "postgresql://postgres:{{resolve:secretsmanager:${DbSecretArn}:SecretString:password}}@${Host}:${Port}/${DbName}?sslmode=require",
+      {
+        DbSecretArn: dbSecret.secretArn,
+        Host: database.dbInstanceEndpointAddress,
+        Port: database.dbInstanceEndpointPort,
+        DbName: dbName,
+      },
+    );
+
+    new cdk.CfnOutput(this, "DatabaseUrlV2", {
+      value: databaseUrlV2,
+      description:
+        "Database connection URL v2 (password via dynamic reference)",
+      exportName: `BhCaptureCo-DatabaseUrlV2-${props.environment}`,
+    });
+
+    // Secrets Manager secret containing the full DATABASE_URL (for App Runner runtime secret injection)
+    const databaseUrlSecretV2 = new secretsmanager.Secret(
+      this,
+      "DatabaseUrlSecretV2",
+      {
+        secretName: `bhcaptureco/database-url-v2/${props.environment}`,
+        secretStringValue: cdk.SecretValue.unsafePlainText(databaseUrlV2),
+      },
+    );
+
+    new cdk.CfnOutput(this, "DatabaseUrlV2SecretArn", {
+      value: databaseUrlSecretV2.secretArn,
+      description: "ARN of the Secrets Manager secret holding DATABASE_URL",
+      exportName: `BhCaptureCo-DatabaseUrlV2-SecretArn-${props.environment}`,
     });
 
     this.dbSecretArn = new cdk.CfnOutput(this, "DbSecretArn", {

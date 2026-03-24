@@ -1,0 +1,21 @@
+{
+  "version": "48.0.0",
+  "files": {
+    "0e6b5a8b495b5ad35a09de32232dae68eb06a67ee0352e538a85916742fe24e8": {
+      "displayName": "NetworkStack-staging Template",
+      "source": {
+        "path": "bhcaptureco-staging-network.template.json",
+        "packaging": "file"
+      },
+      "destinations": {
+        "031277186672-us-east-2-56959141": {
+          "bucketName": "cdk-hnb659fds-assets-031277186672-us-east-2",
+          "objectKey": "0e6b5a8b495b5ad35a09de32232dae68eb06a67ee0352e538a85916742fe24e8.json",
+          "region": "us-east-2",
+          "assumeRoleArn": "arn:${AWS::Partition}:iam::031277186672:role/cdk-hnb659fds-file-publishing-role-031277186672-us-east-2"
+        }
+      }
+    }
+  },
+  "dockerImages": {}
+}

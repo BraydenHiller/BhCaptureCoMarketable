@@ -8,7 +8,7 @@ const serverEnvSchema = z.object({
 	AWS_REGION: z.string().nonempty("AWS_REGION is required"),
 	PLATFORM_S3_BUCKET: z.string().nonempty("PLATFORM_S3_BUCKET is required"),
 	COGNITO_APP_CLIENT_ID: z.string().nonempty("COGNITO_APP_CLIENT_ID is required"),
-	NEXT_PUBLIC_MAIN_DOMAIN: z.string().nonempty("NEXT_PUBLIC_MAIN_DOMAIN is required"),
+	MAIN_DOMAIN: z.string().nonempty("MAIN_DOMAIN is required"),
 });
 
 // client-side (public) vars
@@ -23,7 +23,7 @@ const parsedServer = serverEnvSchema.parse({
 	AWS_REGION: process.env.AWS_REGION,
 	PLATFORM_S3_BUCKET: process.env.PLATFORM_S3_BUCKET,
 	COGNITO_APP_CLIENT_ID: process.env.COGNITO_APP_CLIENT_ID,
-	NEXT_PUBLIC_MAIN_DOMAIN: process.env.NEXT_PUBLIC_MAIN_DOMAIN,
+	MAIN_DOMAIN: process.env.MAIN_DOMAIN,
 });
 
 const parsedClient = clientSchema.parse({

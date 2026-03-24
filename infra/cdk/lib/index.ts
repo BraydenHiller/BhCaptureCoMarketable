@@ -16,9 +16,10 @@ if (!["staging", "production"].includes(deployEnv)) {
 const stackPrefix = `bhcaptureco-${deployEnv}`;
 
 // Create CDK environment from process env
+const cleanEnv = (value?: string) => value?.trim() || undefined;
 const env: cdk.Environment = {
-  account: process.env.CDK_DEFAULT_ACCOUNT,
-  region: process.env.CDK_DEFAULT_REGION,
+  account: cleanEnv(process.env.CDK_DEFAULT_ACCOUNT),
+  region: cleanEnv(process.env.CDK_DEFAULT_REGION),
 };
 
 const platformDomain =
@@ -49,6 +50,10 @@ const appRunnerStack = new AppRunnerStack(app, `${stackPrefix}-apprunner`, {
   vpc: networkStack.vpc,
   environment: deployEnv,
   env,
+  mainDomain: "ks8mw3ayss.us-east-2.awsapprunner.com",
+  cognitoAppClientId: "57cm0lk54oqbh3ei6j93ig9529",
+  cognitoUserPoolId: "us-east-2_3R8foJYj2",
+  platformS3Bucket: "bhcaptureco-assets-staging-031277186672",
   stackName: deployEnv === "staging" ? "AppRunnerStack-staging" : undefined,
   description: `App Runner infrastructure for BhCaptureCo (${deployEnv})`,
 });

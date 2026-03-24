@@ -1,0 +1,21 @@
+{
+  "version": "48.0.0",
+  "files": {
+    "7177ff01f9554703256afd6fe2e9d4fb8e342e85e747012ed9e00d002216c727": {
+      "displayName": "StorageStack-staging Template",
+      "source": {
+        "path": "bhcaptureco-staging-storage.template.json",
+        "packaging": "file"
+      },
+      "destinations": {
+        "031277186672-us-east-2-8c448323": {
+          "bucketName": "cdk-hnb659fds-assets-031277186672-us-east-2",
+          "objectKey": "7177ff01f9554703256afd6fe2e9d4fb8e342e85e747012ed9e00d002216c727.json",
+          "region": "us-east-2",
+          "assumeRoleArn": "arn:${AWS::Partition}:iam::031277186672:role/cdk-hnb659fds-file-publishing-role-031277186672-us-east-2"
+        }
+      }
+    }
+  },
+  "dockerImages": {}
+}

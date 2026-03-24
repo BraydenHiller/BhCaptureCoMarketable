@@ -1,0 +1,485 @@
+{
+ "Description": "App Runner infrastructure for BhCaptureCo (staging)",
+ "Resources": {
+  "AppRunnerConnectorSecurityGroupD2864E68": {
+   "Type": "AWS::EC2::SecurityGroup",
+   "Properties": {
+    "GroupDescription": "Security group for App Runner VPC connector",
+    "SecurityGroupEgress": [
+     {
+      "CidrIp": "0.0.0.0/0",
+      "Description": "Allow all outbound traffic by default",
+      "IpProtocol": "-1"
+     }
+    ],
+    "VpcId": {
+     "Fn::ImportValue": "NetworkStack-staging:ExportsOutputRefVpc8378EB38272D6E3A"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "bhcaptureco-staging-apprunner/AppRunnerConnectorSecurityGroup/Resource"
+   }
+  },
+  "VpcConnector": {
+   "Type": "AWS::AppRunner::VpcConnector",
+   "Properties": {
+    "SecurityGroups": [
+     {
+      "Fn::GetAtt": [
+       "AppRunnerConnectorSecurityGroupD2864E68",
+       "GroupId"
+      ]
+     }
+    ],
+    "Subnets": [
+     {
+      "Fn::ImportValue": "NetworkStack-staging:ExportsOutputRefVpcPrivateSubnet1Subnet536B997AFD4CC940"
+     },
+     {
+      "Fn::ImportValue": "NetworkStack-staging:ExportsOutputRefVpcPrivateSubnet2Subnet3788AAA1380949A3"
+     }
+    ],
+    "VpcConnectorName": "bhcaptureco-connector-staging"
+   },
+   "Metadata": {
+    "aws:cdk:path": "bhcaptureco-staging-apprunner/VpcConnector"
+   }
+  },
+  "AppRunnerInstanceRole96A5A063": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "tasks.apprunner.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "bhcaptureco-staging-apprunner/AppRunnerInstanceRole/Resource"
+   }
+  },
+  "AppRunnerInstanceRoleDefaultPolicy35195718": {
+   "Type": "AWS::IAM::Policy",
+   "Properties": {
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": [
+        "secretsmanager:GetSecretValue",
+        "secretsmanager:DescribeSecret"
+       ],
+       "Effect": "Allow",
+       "Resource": {
+        "Fn::Join": [
+         "",
+         [
+          "arn:",
+          {
+           "Ref": "AWS::Partition"
+          },
+          ":secretsmanager:us-east-2:031277186672:secret:bhcaptureco/auth-session-secret/staging-??????"
+         ]
+        ]
+       }
+      },
+      {
+       "Action": [
+        "secretsmanager:GetSecretValue",
+        "secretsmanager:DescribeSecret"
+       ],
+       "Effect": "Allow",
+       "Resource": {
+        "Fn::Join": [
+         "",
+         [
+          "arn:",
+          {
+           "Ref": "AWS::Partition"
+          },
+          ":secretsmanager:us-east-2:031277186672:secret:bhcaptureco/database-url-v2/staging-??????"
+         ]
+        ]
+       }
+      },
+      {
+       "Action": [
+        "secretsmanager:GetSecretValue",
+        "secretsmanager:DescribeSecret"
+       ],
+       "Effect": "Allow",
+       "Resource": {
+        "Fn::Join": [
+         "",
+         [
+          "arn:",
+          {
+           "Ref": "AWS::Partition"
+          },
+          ":secretsmanager:us-east-2:031277186672:secret:bhcaptureco/stripe-secret-key/staging-??????"
+         ]
+        ]
+       }
+      },
+      {
+       "Action": [
+        "cognito-idp:AdminCreateUser",
+        "cognito-idp:AdminSetUserPassword",
+        "cognito-idp:AdminGetUser",
+        "cognito-idp:AdminDeleteUser"
+       ],
+       "Effect": "Allow",
+       "Resource": "arn:aws:cognito-idp:us-east-2:031277186672:userpool/us-east-2_3R8foJYj2"
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "PolicyName": "AppRunnerInstanceRoleDefaultPolicy35195718",
+    "Roles": [
+     {
+      "Ref": "AppRunnerInstanceRole96A5A063"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "bhcaptureco-staging-apprunner/AppRunnerInstanceRole/DefaultPolicy/Resource"
+   }
+  },
+  "AppRunnerAccessRoleC89E5843": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "build.apprunner.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "bhcaptureco-staging-apprunner/AppRunnerAccessRole/Resource"
+   }
+  },
+  "AppRunnerAccessRoleDefaultPolicy4FF2CFAF": {
+   "Type": "AWS::IAM::Policy",
+   "Properties": {
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": [
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:GetDownloadUrlForLayer",
+        "ecr:BatchGetImage"
+       ],
+       "Effect": "Allow",
+       "Resource": {
+        "Fn::Join": [
+         "",
+         [
+          "arn:",
+          {
+           "Ref": "AWS::Partition"
+          },
+          ":ecr:us-east-2:031277186672:repository/bhcaptureco-apprunner"
+         ]
+        ]
+       }
+      },
+      {
+       "Action": "ecr:GetAuthorizationToken",
+       "Effect": "Allow",
+       "Resource": "*"
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "PolicyName": "AppRunnerAccessRoleDefaultPolicy4FF2CFAF",
+    "Roles": [
+     {
+      "Ref": "AppRunnerAccessRoleC89E5843"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "bhcaptureco-staging-apprunner/AppRunnerAccessRole/DefaultPolicy/Resource"
+   }
+  },
+  "AppRunnerService": {
+   "Type": "AWS::AppRunner::Service",
+   "Properties": {
+    "HealthCheckConfiguration": {
+     "HealthyThreshold": 1,
+     "Interval": 10,
+     "Path": "/",
+     "Protocol": "HTTP",
+     "Timeout": 5,
+     "UnhealthyThreshold": 5
+    },
+    "InstanceConfiguration": {
+     "Cpu": "1 vCPU",
+     "InstanceRoleArn": {
+      "Fn::GetAtt": [
+       "AppRunnerInstanceRole96A5A063",
+       "Arn"
+      ]
+     },
+     "Memory": "2 GB"
+    },
+    "NetworkConfiguration": {
+     "EgressConfiguration": {
+      "EgressType": "VPC",
+      "VpcConnectorArn": {
+       "Fn::GetAtt": [
+        "VpcConnector",
+        "VpcConnectorArn"
+       ]
+      }
+     }
+    },
+    "ServiceName": "bhcaptureco-staging",
+    "SourceConfiguration": {
+     "AuthenticationConfiguration": {
+      "AccessRoleArn": {
+       "Fn::GetAtt": [
+        "AppRunnerAccessRoleC89E5843",
+        "Arn"
+       ]
+      }
+     },
+     "AutoDeploymentsEnabled": false,
+     "ImageRepository": {
+      "ImageConfiguration": {
+       "Port": "3000",
+       "RuntimeEnvironmentSecrets": [
+        {
+         "Name": "DATABASE_URL",
+         "Value": {
+          "Fn::ImportValue": "BhCaptureCo-DatabaseUrlV2-SecretArn-staging"
+         }
+        },
+        {
+         "Name": "AUTH_SESSION_SECRET",
+         "Value": {
+          "Fn::Join": [
+           "",
+           [
+            "arn:",
+            {
+             "Ref": "AWS::Partition"
+            },
+            ":secretsmanager:us-east-2:031277186672:secret:bhcaptureco/auth-session-secret/staging"
+           ]
+          ]
+         }
+        },
+        {
+         "Name": "STRIPE_SECRET_KEY",
+         "Value": {
+          "Fn::Join": [
+           "",
+           [
+            "arn:",
+            {
+             "Ref": "AWS::Partition"
+            },
+            ":secretsmanager:us-east-2:031277186672:secret:bhcaptureco/stripe-secret-key/staging"
+           ]
+          ]
+         }
+        }
+       ],
+       "RuntimeEnvironmentVariables": [
+        {
+         "Name": "NODE_ENV",
+         "Value": "production"
+        },
+        {
+         "Name": "AWS_REGION",
+         "Value": "us-east-2"
+        },
+        {
+         "Name": "COGNITO_APP_CLIENT_ID",
+         "Value": "57cm0lk54oqbh3ei6j93ig9529"
+        },
+        {
+         "Name": "COGNITO_USER_POOL_ID",
+         "Value": "us-east-2_3R8foJYj2"
+        },
+        {
+         "Name": "NEXT_PUBLIC_MAIN_DOMAIN",
+         "Value": "ks8mw3ayss.us-east-2.awsapprunner.com"
+        },
+        {
+         "Name": "MAIN_DOMAIN",
+         "Value": "ks8mw3ayss.us-east-2.awsapprunner.com"
+        },
+        {
+         "Name": "PLATFORM_S3_BUCKET",
+         "Value": "bhcaptureco-assets-staging-031277186672"
+        },
+        {
+         "Name": "APP_ENV",
+         "Value": "production"
+        }
+       ]
+      },
+      "ImageIdentifier": {
+       "Fn::Join": [
+        "",
+        [
+         "031277186672.dkr.ecr.us-east-2.",
+         {
+          "Ref": "AWS::URLSuffix"
+         },
+         "/bhcaptureco-apprunner:latest"
+        ]
+       ]
+      },
+      "ImageRepositoryType": "ECR"
+     }
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "bhcaptureco-staging-apprunner/AppRunnerService"
+   }
+  },
+  "DbSecurityGroupfromIndirectPeer543226DBE408": {
+   "Type": "AWS::EC2::SecurityGroupIngress",
+   "Properties": {
+    "Description": "Allow Postgres from App Runner",
+    "FromPort": 5432,
+    "GroupId": {
+     "Fn::ImportValue": "BhCaptureCo-DbSecurityGroupId-staging"
+    },
+    "IpProtocol": "tcp",
+    "SourceSecurityGroupId": {
+     "Fn::GetAtt": [
+      "AppRunnerConnectorSecurityGroupD2864E68",
+      "GroupId"
+     ]
+    },
+    "ToPort": 5432
+   },
+   "Metadata": {
+    "aws:cdk:path": "bhcaptureco-staging-apprunner/DbSecurityGroup/from {IndirectPeer}:5432"
+   }
+  },
+  "CDKMetadata": {
+   "Type": "AWS::CDK::Metadata",
+   "Properties": {
+    "Analytics": "v2:deflate64:H4sIAAAAAAAA/32LwW4CMQxEv4V71qUL6gd0D1VPVIvUK0qNqQyLHdkJaBXl3yvYe09v5mmmh37zButVvHuHx0s38Q/UfY54CfHuh0poMFJS56w2v0enQNhD3RMW4zx/mJYUhpP8Lz7l18i9hZiSFREyqMNJvhMOKkKY1ZaP3RipBY5XqKNO9LBPfunEOD/qkloLI7kWw+dmV3IquQXRI8HZX279Fl43sF6dnbmzIpmvBOPCP1uv5RX1AAAA"
+   },
+   "Metadata": {
+    "aws:cdk:path": "bhcaptureco-staging-apprunner/CDKMetadata/Default"
+   }
+  }
+ },
+ "Outputs": {
+  "AppRunnerServiceArn": {
+   "Description": "App Runner service ARN",
+   "Value": {
+    "Fn::GetAtt": [
+     "AppRunnerService",
+     "ServiceArn"
+    ]
+   },
+   "Export": {
+    "Name": "BhCaptureCo-AppRunnerServiceArn-staging"
+   }
+  },
+  "AppRunnerServiceUrl": {
+   "Description": "App Runner service URL",
+   "Value": {
+    "Fn::GetAtt": [
+     "AppRunnerService",
+     "ServiceUrl"
+    ]
+   },
+   "Export": {
+    "Name": "BhCaptureCo-AppRunnerServiceUrl-staging"
+   }
+  },
+  "EcrRepoUri": {
+   "Description": "ECR repository URI for app images",
+   "Value": {
+    "Fn::Join": [
+     "",
+     [
+      "031277186672.dkr.ecr.us-east-2.",
+      {
+       "Ref": "AWS::URLSuffix"
+      },
+      "/bhcaptureco-apprunner"
+     ]
+    ]
+   },
+   "Export": {
+    "Name": "BhCaptureCo-EcrRepoUri-staging"
+   }
+  },
+  "EcrRepoName": {
+   "Description": "ECR repository name for app images",
+   "Value": "bhcaptureco-apprunner",
+   "Export": {
+    "Name": "BhCaptureCo-AppRepoName-staging"
+   }
+  },
+  "VpcConnectorSecurityGroupId": {
+   "Description": "Security group ID for VPC connector",
+   "Value": {
+    "Fn::GetAtt": [
+     "AppRunnerConnectorSecurityGroupD2864E68",
+     "GroupId"
+    ]
+   },
+   "Export": {
+    "Name": "BhCaptureCo-VpcConnectorSgId-staging"
+   }
+  }
+ },
+ "Parameters": {
+  "BootstrapVersion": {
+   "Type": "AWS::SSM::Parameter::Value<String>",
+   "Default": "/cdk-bootstrap/hnb659fds/version",
+   "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]"
+  }
+ },
+ "Rules": {
+  "CheckBootstrapVersion": {
+   "Assertions": [
+    {
+     "Assert": {
+      "Fn::Not": [
+       {
+        "Fn::Contains": [
+         [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5"
+         ],
+         {
+          "Ref": "BootstrapVersion"
+         }
+        ]
+       }
+      ]
+     },
+     "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI."
+    }
+   ]
+  }
+ }
+}

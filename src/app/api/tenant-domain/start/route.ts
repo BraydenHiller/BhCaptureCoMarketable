@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
 			return NextResponse.json({ error: 'HOSTNAME_INVALID' }, { status: 400 });
 		}
 
-		const mainDomain = normalizeHostname(env.NEXT_PUBLIC_MAIN_DOMAIN);
+		const mainDomain = normalizeHostname(env.MAIN_DOMAIN);
 		if (mainDomain && hostname === mainDomain) {
 			return NextResponse.json({ error: 'HOSTNAME_INVALID' }, { status: 400 });
 		}

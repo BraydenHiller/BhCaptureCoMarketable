@@ -1,5 +1,6 @@
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
+import { env } from '@/lib/env';
 
 function stripPort(host: string): string {
 	if (!host) return host;
@@ -20,10 +21,7 @@ function stripPort(host: string): string {
 }
 
 export async function requireMainDomain(): Promise<void> {
-	const mainDomain = process.env.NEXT_PUBLIC_MAIN_DOMAIN;
-	if (!mainDomain) {
-		throw new Error('NEXT_PUBLIC_MAIN_DOMAIN is required');
-	}
+	const mainDomain = env.MAIN_DOMAIN;
 
 	const h = await headers();
 	const host = h.get('host');

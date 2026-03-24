@@ -119,7 +119,7 @@ export class AppRunnerStack extends cdk.Stack {
     if (deployService) {
       // Create App Runner Service
       // Environment variables:
-      //   - NODE_ENV, AWS_REGION, COGNITO_APP_CLIENT_ID, NEXT_PUBLIC_MAIN_DOMAIN, MAIN_DOMAIN, PLATFORM_S3_BUCKET, APP_ENV: plain text
+      //   - NODE_ENV, AWS_REGION, COGNITO_APP_CLIENT_ID, MAIN_DOMAIN, PLATFORM_S3_BUCKET, APP_ENV: plain text
       //   - DATABASE_URL, AUTH_SESSION_SECRET: from Secrets Manager (via instanceRole)
       const appRunnerService = new apprunner.CfnService(this, "AppRunnerService", {
         serviceName: `bhcaptureco-${props.environment}`,
@@ -149,10 +149,6 @@ export class AppRunnerStack extends cdk.Stack {
                 {
                   name: "COGNITO_USER_POOL_ID",
                   value: props.cognitoUserPoolId || "not-set",
-                },
-                {
-                  name: "NEXT_PUBLIC_MAIN_DOMAIN",
-                  value: props.mainDomain || "not-set",
                 },
                 {
                   name: "MAIN_DOMAIN",

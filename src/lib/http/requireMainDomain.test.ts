@@ -80,7 +80,7 @@ describe('requireMainDomain', () => {
 	});
 
 	it('passes when host matches main domain', async () => {
-		vi.stubEnv('NEXT_PUBLIC_MAIN_DOMAIN', 'app.example.com');
+		vi.stubEnv('MAIN_DOMAIN', 'app.example.com');
 		const { headers } = await import('next/headers');
 		vi.mocked(headers).mockResolvedValue(makeHeadersMock({ host: 'app.example.com' }));
 
@@ -88,7 +88,7 @@ describe('requireMainDomain', () => {
 	});
 
 	it('passes when host matches main domain with port', async () => {
-		vi.stubEnv('NEXT_PUBLIC_MAIN_DOMAIN', 'app.example.com');
+		vi.stubEnv('MAIN_DOMAIN', 'app.example.com');
 		const { headers } = await import('next/headers');
 		vi.mocked(headers).mockResolvedValue(makeHeadersMock({ host: 'app.example.com:3000' }));
 
@@ -96,7 +96,7 @@ describe('requireMainDomain', () => {
 	});
 
 	it('redirects when host differs from main domain', async () => {
-		vi.stubEnv('NEXT_PUBLIC_MAIN_DOMAIN', 'app.example.com');
+		vi.stubEnv('MAIN_DOMAIN', 'app.example.com');
 		vi.stubEnv('NODE_ENV', 'development');
 		const { headers } = await import('next/headers');
 		vi.mocked(headers).mockResolvedValue(makeHeadersMock({ 
@@ -107,15 +107,15 @@ describe('requireMainDomain', () => {
 		await expect(requireMainDomain()).rejects.toThrow('REDIRECT:http://app.example.com/app/dashboard');
 	});
 
-	it('throws if NEXT_PUBLIC_MAIN_DOMAIN is missing', async () => {
+	it('throws if MAIN_DOMAIN is missing', async () => {
 		const { headers } = await import('next/headers');
 		vi.mocked(headers).mockResolvedValue(makeHeadersMock({ host: 'app.example.com' }));
 
-		await expect(requireMainDomain()).rejects.toThrow('NEXT_PUBLIC_MAIN_DOMAIN is required');
+		await expect(requireMainDomain()).rejects.toThrow('MAIN_DOMAIN is required');
 	});
 
 	it('throws if host header is missing', async () => {
-		vi.stubEnv('NEXT_PUBLIC_MAIN_DOMAIN', 'app.example.com');
+		vi.stubEnv('MAIN_DOMAIN', 'app.example.com');
 		const { headers } = await import('next/headers');
 		vi.mocked(headers).mockResolvedValue(makeHeadersMock({}));
 

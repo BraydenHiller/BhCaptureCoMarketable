@@ -49,7 +49,7 @@ export class AppStack extends cdk.Stack {
             logGroup,
           }),
           environment: {
-            NEXT_PUBLIC_MAIN_DOMAIN: props.platformDomain,
+            MAIN_DOMAIN: props.platformDomain,
             NODE_ENV: props.environment,
           },
           secrets: {
