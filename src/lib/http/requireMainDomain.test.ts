@@ -1,5 +1,21 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { requireMainDomain } from './requireMainDomain';
+
+const mockEnvState = vi.hoisted(() => ({
+	MAIN_DOMAIN: 'app.example.com' as string | null,
+}));
+
+vi.mock('@/lib/env', () => ({
+	env: new Proxy({} as Record<string, string>, {
+		get(_, prop: string) {
+			if (prop === 'MAIN_DOMAIN') {
+				if (!mockEnvState.MAIN_DOMAIN) throw new Error('MAIN_DOMAIN is required');
+				return mockEnvState.MAIN_DOMAIN;
+			}
+			return undefined;
+		},
+	}),
+}));
 
 function makeHeadersMock(values: Record<string, string | undefined>): Headers {
 	const get = (name: string): string | null => {
@@ -73,14 +89,10 @@ vi.mock('next/navigation', () => ({
 describe('requireMainDomain', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
-	});
-
-	afterEach(() => {
-		vi.unstubAllEnvs();
+		mockEnvState.MAIN_DOMAIN = 'app.example.com';
 	});
 
 	it('passes when host matches main domain', async () => {
-		vi.stubEnv('MAIN_DOMAIN', 'app.example.com');
 		const { headers } = await import('next/headers');
 		vi.mocked(headers).mockResolvedValue(makeHeadersMock({ host: 'app.example.com' }));
 
@@ -88,7 +100,6 @@ describe('requireMainDomain', () => {
 	});
 
 	it('passes when host matches main domain with port', async () => {
-		vi.stubEnv('MAIN_DOMAIN', 'app.example.com');
 		const { headers } = await import('next/headers');
 		vi.mocked(headers).mockResolvedValue(makeHeadersMock({ host: 'app.example.com:3000' }));
 
@@ -96,7 +107,6 @@ describe('requireMainDomain', () => {
 	});
 
 	it('redirects when host differs from main domain', async () => {
-		vi.stubEnv('MAIN_DOMAIN', 'app.example.com');
 		vi.stubEnv('NODE_ENV', 'development');
 		const { headers } = await import('next/headers');
 		vi.mocked(headers).mockResolvedValue(makeHeadersMock({ 
@@ -108,6 +118,7 @@ describe('requireMainDomain', () => {
 	});
 
 	it('throws if MAIN_DOMAIN is missing', async () => {
+		mockEnvState.MAIN_DOMAIN = null;
 		const { headers } = await import('next/headers');
 		vi.mocked(headers).mockResolvedValue(makeHeadersMock({ host: 'app.example.com' }));
 
@@ -115,7 +126,6 @@ describe('requireMainDomain', () => {
 	});
 
 	it('throws if host header is missing', async () => {
-		vi.stubEnv('MAIN_DOMAIN', 'app.example.com');
 		const { headers } = await import('next/headers');
 		vi.mocked(headers).mockResolvedValue(makeHeadersMock({}));
 
