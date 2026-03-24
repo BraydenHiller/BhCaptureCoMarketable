@@ -12,6 +12,7 @@ interface AppRunnerStackProps extends cdk.StackProps {
   region?: string;
   mainDomain?: string;
   cognitoAppClientId?: string;
+  cognitoUserPoolId?: string;
   platformS3Bucket?: string;
 }
 
@@ -71,6 +72,11 @@ export class AppRunnerStack extends cdk.Stack {
       "AuthSessionSecret",
       `bhcaptureco/auth-session-secret/${props.environment}`
     );
+    const stripeSecretKey = secretsmanager.Secret.fromSecretNameV2(
+      this,
+      "StripeSecretKey",
+      `bhcaptureco/stripe-secret-key/${props.environment}`
+    );
 
     // Create IAM role for App Runner instance
     const instanceRole = new iam.Role(this, "AppRunnerInstanceRole", {
@@ -92,6 +98,22 @@ export class AppRunnerStack extends cdk.Stack {
     // Grant instance role permission to read secrets
     authSessionSecret.grantRead(instanceRole);
     databaseUrlSecret.grantRead(instanceRole);
+    stripeSecretKey.grantRead(instanceRole);
+
+    // Grant instance role permission to manage Cognito users
+    instanceRole.addToPolicy(
+      new iam.PolicyStatement({
+        actions: [
+          "cognito-idp:AdminCreateUser",
+          "cognito-idp:AdminSetUserPassword",
+          "cognito-idp:AdminGetUser",
+          "cognito-idp:AdminDeleteUser",
+        ],
+        resources: [
+          `arn:aws:cognito-idp:${this.region}:${this.account}:userpool/${props.cognitoUserPoolId}`,
+        ],
+      })
+    );
 
     // Conditionally create App Runner Service
     if (deployService) {
@@ -125,6 +147,10 @@ export class AppRunnerStack extends cdk.Stack {
                   value: props.cognitoAppClientId || "not-set",
                 },
                 {
+                  name: "COGNITO_USER_POOL_ID",
+                  value: props.cognitoUserPoolId || "not-set",
+                },
+                {
                   name: "NEXT_PUBLIC_MAIN_DOMAIN",
                   value: props.mainDomain || "not-set",
                 },
@@ -140,6 +166,10 @@ export class AppRunnerStack extends cdk.Stack {
                   name: "APP_ENV",
                   value: "production",
                 },
+                {
+                  name: "APP_CONFIG_REV",
+                  value: "2",
+                },
               ],
               runtimeEnvironmentSecrets: [
                 {
@@ -149,6 +179,10 @@ export class AppRunnerStack extends cdk.Stack {
                 {
                   name: "AUTH_SESSION_SECRET",
                   value: authSessionSecret.secretArn,
+                },
+                {
+                  name: "STRIPE_SECRET_KEY",
+                  value: stripeSecretKey.secretArn,
                 },
               ],
             },
