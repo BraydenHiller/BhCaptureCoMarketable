@@ -74,6 +74,24 @@ export class IamStack extends cdk.Stack {
       })
     );
 
+    // Allow reading CDK bootstrap SSM parameters
+    deployRole.addToPrincipalPolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: ["ssm:GetParameter"],
+        resources: [`arn:aws:ssm:${this.region}:${this.account}:parameter/cdk-bootstrap/*`],
+      })
+    );
+
+    // Allow PassRole to CDK CloudFormation execution role
+    deployRole.addToPrincipalPolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: ["iam:PassRole"],
+        resources: [`arn:aws:iam::${this.account}:role/cdk-hnb659fds-cfn-exec-role-${this.account}-${this.region}`],
+      })
+    );
+
     this.deployRoleArn = new cdk.CfnOutput(this, "DeployRoleArn", {
       value: deployRole.roleArn,
       description: "GitHub Actions deployment role ARN",
