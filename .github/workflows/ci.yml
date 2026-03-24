@@ -17,6 +17,11 @@ jobs:
 
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres?schema=public
+      AUTH_SESSION_SECRET: ci-placeholder-secret-123456789012
+      AWS_REGION: us-east-2
+      PLATFORM_S3_BUCKET: ci-placeholder-bucket
+      COGNITO_APP_CLIENT_ID: ci-placeholder-client-id
+      MAIN_DOMAIN: localhost
 
     steps:
       - uses: actions/checkout@v4
