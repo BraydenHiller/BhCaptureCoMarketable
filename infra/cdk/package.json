@@ -10,7 +10,7 @@
     "cdk:diff": "cdk diff",
     "cdk:diff:staging": "cdk diff --context environment=staging",
     "cdk:diff:prod": "cdk diff --context environment=production",
-    "cdk:deploy:staging": "cdk deploy --all --context environment=staging --require-approval never",
+    "cdk:deploy:staging": "cdk deploy --context environment=staging --require-approval never",
     "cdk:deploy:prod": "cdk deploy --all --context environment=production",
     "cdk:synth": "cdk synth"
   },
