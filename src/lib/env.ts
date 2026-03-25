@@ -9,6 +9,8 @@ const serverEnvSchema = z.object({
 	PLATFORM_S3_BUCKET: z.string().nonempty("PLATFORM_S3_BUCKET is required"),
 	COGNITO_APP_CLIENT_ID: z.string().nonempty("COGNITO_APP_CLIENT_ID is required"),
 	MAIN_DOMAIN: z.string().nonempty("MAIN_DOMAIN is required"),
+	STRIPE_SECRET_KEY: z.string().nonempty("STRIPE_SECRET_KEY is required"),
+	STRIPE_WEBHOOK_SECRET: z.string().nonempty("STRIPE_WEBHOOK_SECRET is required"),
 });
 
 // client-side (public) vars
@@ -30,6 +32,8 @@ function getEnv(): Env {
 			PLATFORM_S3_BUCKET: process.env.PLATFORM_S3_BUCKET,
 			COGNITO_APP_CLIENT_ID: process.env.COGNITO_APP_CLIENT_ID,
 			MAIN_DOMAIN: process.env.MAIN_DOMAIN,
+			STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
+			STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
 		});
 
 		const parsedClient = clientSchema.parse({

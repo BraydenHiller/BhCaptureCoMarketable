@@ -1,17 +1,13 @@
 import { NextResponse } from 'next/server';
 import { getStripe } from '@/lib/stripe';
 import { prisma } from '@/db/prisma';
+import { env } from '@/lib/env';
 import { BillingStatus } from '@prisma/client';
 import type Stripe from 'stripe';
 
 export async function POST(request: Request) {
 	const stripe = getStripe();
 	const signature = request.headers.get('stripe-signature');
-	const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
-
-	if (!webhookSecret) {
-		throw new Error('STRIPE_WEBHOOK_SECRET environment variable is not set');
-	}
 
 	if (!signature) {
 		return NextResponse.json({ error: 'Invalid signature' }, { status: 400 });
@@ -19,7 +15,7 @@ export async function POST(request: Request) {
 
 	try {
 		const rawBody = await request.text();
-		const event = stripe.webhooks.constructEvent(rawBody, signature, webhookSecret);
+		const event = stripe.webhooks.constructEvent(rawBody, signature, env.STRIPE_WEBHOOK_SECRET);
 
 		switch (event.type) {
 			case 'account.updated':
@@ -41,6 +37,27 @@ export async function POST(request: Request) {
 								},
 							});
 						}
+					}
+				}
+				break;
+			case 'checkout.session.completed':
+				{
+					const session = event.data.object as Stripe.Checkout.Session;
+					const purchaseId = session.metadata?.purchaseId;
+					const paymentIntentId =
+						typeof session.payment_intent === 'string'
+							? session.payment_intent
+							: session.payment_intent?.id ?? null;
+
+					if (purchaseId && paymentIntentId) {
+						await prisma.purchase.update({
+							where: { id: purchaseId },
+							data: {
+								status: 'COMPLETED',
+								completedAt: new Date(),
+								stripePaymentIntentId: paymentIntentId,
+							},
+						});
 					}
 				}
 				break;

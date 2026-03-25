@@ -32,6 +32,12 @@ export default async function Page({ params }: PageProps) {
 				<h1 className="text-2xl font-bold">{gallery.name}</h1>
 				<p><strong>ID:</strong> {gallery.id}</p>
 				<p><strong>Created:</strong> {gallery.createdAt.toLocaleString()}</p>
+			<div className="bg-gray-50 border rounded p-3 text-sm space-y-1">
+				<p><strong>Purchasing:</strong> {gallery.purchaseEnabled ? 'Enabled' : 'Disabled'}</p>
+				{gallery.purchaseEnabled && (
+					<p><strong>Require Proofing First:</strong> {gallery.purchaseAfterProof ? 'Yes' : 'No'}</p>
+				)}
+			</div>
 				<div className="flex space-x-4">
 					<Link href={`/galleries/${gallery.id}/edit`} className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
 						Edit
@@ -58,6 +64,7 @@ export default async function Page({ params }: PageProps) {
 									<p><strong>Alt:</strong> {photo.altText || 'N/A'}</p>
 									<p><strong>Caption:</strong> {photo.caption || 'N/A'}</p>
 									<p><strong>Sort:</strong> {photo.sortOrder}</p>
+									<p><strong>Price:</strong> {photo.priceInCents != null ? `${photo.priceInCents}¢` : <span className="text-gray-400 italic">not priced</span>}</p>
 									<div className="flex space-x-2 mt-2">
 										<Link href={`/galleries/${gallery.id}/photos/${photo.id}/edit`} className="text-blue-500 hover:underline">
 											Edit

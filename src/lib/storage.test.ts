@@ -42,6 +42,7 @@ function makePhoto(overrides: Partial<Photo> = {}): Photo {
 		height: null,
 		altText: null,
 		caption: null,
+		priceInCents: null,
 		sortOrder: 0,
 		createdAt: new Date(),
 		updatedAt: new Date(),

@@ -1,4 +1,5 @@
 import Stripe from 'stripe';
+import { env } from '@/lib/env';
 
 let stripeSingleton: Stripe | null = null;
 
@@ -7,13 +8,7 @@ export function getStripe(): Stripe {
 		return stripeSingleton;
 	}
 
-	const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
-
-	if (!STRIPE_SECRET_KEY) {
-		throw new Error('STRIPE_SECRET_KEY environment variable is not set');
-	}
-
-	stripeSingleton = new Stripe(STRIPE_SECRET_KEY, {
+	stripeSingleton = new Stripe(env.STRIPE_SECRET_KEY, {
 		apiVersion: '2026-01-28.clover',
 	});
 

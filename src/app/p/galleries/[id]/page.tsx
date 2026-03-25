@@ -7,6 +7,8 @@ import { notFound, redirect } from "next/navigation";
 import { getClientGallerySession, createClientGallerySession, clearClientGallerySession } from "@/lib/auth/clientGallerySession";
 import { isClientSessionValid, verifyClientPassword, verifyClientUsername } from "@/lib/galleryClientAuth";
 import SelectionClient from "./SelectionClient";
+import PurchaseClient from "./PurchaseClient";
+import { listClientCompletedEntitlements } from "@/db/purchase";
 
 type PageProps = {
 	params: Promise<{ id: string }>;
@@ -34,6 +36,8 @@ export default async function Page({ params, searchParams }: PageProps) {
 				clientPasswordHash: true,
 				createdAt: true,
 				maxSelections: true,
+				purchaseEnabled: true,
+				purchaseAfterProof: true,
 			},
 		});
 
@@ -81,6 +85,23 @@ export default async function Page({ params, searchParams }: PageProps) {
 		}
 
 		if (galleryData.accessMode === 'PUBLIC') {
+			if (galleryData.purchaseEnabled) {
+				const photos = await listPhotos(galleryId);
+				const purchasePhotos = photos.map((p) => ({
+					id: p.id,
+					originalFilename: p.originalFilename,
+					caption: p.caption,
+					altText: p.altText,
+					priceInCents: p.priceInCents,
+				}));
+				return (
+					<div className="space-y-4">
+						<h1 className="text-2xl font-bold">{galleryData.name}</h1>
+						<p className="text-sm text-gray-600">Created: {galleryData.createdAt.toLocaleString()}</p>
+						<PurchaseClient galleryId={galleryId} photos={purchasePhotos} />
+					</div>
+				);
+			}
 			return (
 				<div className="space-y-4">
 					<h1 className="text-2xl font-bold">{galleryData.name}</h1>
@@ -101,12 +122,34 @@ export default async function Page({ params, searchParams }: PageProps) {
 				altText: p.altText,
 				sortOrder: p.sortOrder,
 			}));
+			const purchasePhotos = photos.map((p) => ({
+				id: p.id,
+				originalFilename: p.originalFilename,
+				caption: p.caption,
+				altText: p.altText,
+				priceInCents: p.priceInCents,
+			}));
+
+			let entitledPhotoIds: string[] = [];
+			if (galleryData.purchaseEnabled && galleryData.clientUsername) {
+				const completed = await listClientCompletedEntitlements(galleryId, galleryData.clientUsername);
+				const idSet = new Set<string>();
+				for (const p of completed) {
+					for (const item of p.items) {
+						idSet.add(item.photoId);
+					}
+				}
+				entitledPhotoIds = Array.from(idSet);
+			}
 
 			return (
 				<div className="space-y-4">
 					<h1 className="text-2xl font-bold">{galleryData.name}</h1>
 					<p className="text-sm text-gray-600">Created: {galleryData.createdAt.toLocaleString()}</p>
 					<SelectionClient galleryId={galleryId} photos={clientPhotos} maxSelections={galleryData.maxSelections} />
+					{galleryData.purchaseEnabled && (
+						<PurchaseClient galleryId={galleryId} photos={purchasePhotos} entitledPhotoIds={entitledPhotoIds} />
+					)}
 					<form action={signOutClient}>
 						<input type="hidden" name="direct" value={isDirect ? '1' : '0'} />
 						<button type="submit" className="border px-3 py-1 rounded">Sign out</button>

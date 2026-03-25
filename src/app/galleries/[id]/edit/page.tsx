@@ -35,6 +35,9 @@ async function updateGallery(id: string, formData: FormData) {
 		const parsedMax = rawMax ? parseInt(rawMax, 10) : NaN;
 		const maxSelections = access.accessMode === "PRIVATE" && !isNaN(parsedMax) && parsedMax >= 0 ? parsedMax : null;
 
+		const purchaseEnabled = formData.get('purchaseEnabled') === 'on';
+		const purchaseAfterProof = formData.get('purchaseAfterProof') === 'on';
+
 		await db.gallery.update({
 			where: { id, tenantId },
 			data: {
@@ -43,20 +46,23 @@ async function updateGallery(id: string, formData: FormData) {
 				clientUsername: access.clientUsername,
 				clientPasswordHash: access.clientPasswordHash,
 				maxSelections,
+				purchaseEnabled,
+				purchaseAfterProof,
 			},
 		});
 		redirect(`/galleries/${id}`);
 	});
 }
 
-export default async function Page({ params }: { params: { id: string } }) {
+export default async function Page({ params }: { params: Promise<{ id: string }> }) {
+	const { id } = await params;
 	await requireMainDomain();
 	const session = await requireTenantSession();
 	return await runWithTenantScope(session.tenantId, async () => {
 		const db = getRequestDb();
 		const tenantId = requireScopedTenantId();
 		const gallery = await db.gallery.findUnique({
-			where: { id: params.id, tenantId },
+			where: { id, tenantId },
 		});
 
 		if (!gallery) {
@@ -67,7 +73,7 @@ export default async function Page({ params }: { params: { id: string } }) {
 			<div className="space-y-4">
 				<h1 className="text-2xl font-bold">Edit Gallery</h1>
 				<p className="text-sm text-gray-600">Tenant: {tenantId}</p>
-				<form action={updateGallery.bind(null, params.id)} className="space-y-4">
+				<form action={updateGallery.bind(null, id)} className="space-y-4">
 					<div>
 						<label htmlFor="name" className="block text-sm font-medium text-gray-700">Name</label>
 						<input
@@ -121,6 +127,26 @@ export default async function Page({ params }: { params: { id: string } }) {
 							defaultValue={gallery.maxSelections ?? ''}
 							className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
 						/>
+					</div>
+					<div className="flex items-center gap-2">
+						<input
+							type="checkbox"
+							id="purchaseEnabled"
+							name="purchaseEnabled"
+							defaultChecked={gallery.purchaseEnabled}
+							className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+						/>
+						<label htmlFor="purchaseEnabled" className="text-sm font-medium text-gray-700">Enable Purchasing</label>
+					</div>
+					<div className="flex items-center gap-2">
+						<input
+							type="checkbox"
+							id="purchaseAfterProof"
+							name="purchaseAfterProof"
+							defaultChecked={gallery.purchaseAfterProof}
+							className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+						/>
+						<label htmlFor="purchaseAfterProof" className="text-sm font-medium text-gray-700">Require Proofing Before Purchase (PRIVATE only)</label>
 					</div>
 					<button
 						type="submit"

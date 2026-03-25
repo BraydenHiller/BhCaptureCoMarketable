@@ -22,6 +22,8 @@ jobs:
       PLATFORM_S3_BUCKET: ci-placeholder-bucket
       COGNITO_APP_CLIENT_ID: ci-placeholder-client-id
       MAIN_DOMAIN: localhost
+      STRIPE_SECRET_KEY: sk_test_ci_placeholder
+      STRIPE_WEBHOOK_SECRET: whsec_ci_placeholder
 
     steps:
       - uses: actions/checkout@v4

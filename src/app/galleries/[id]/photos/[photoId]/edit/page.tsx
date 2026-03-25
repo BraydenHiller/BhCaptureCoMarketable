@@ -14,7 +14,14 @@ async function updatePhotoAction(photoId: string, formData: FormData) {
 		const altText = formData.get('altText') as string;
 		const caption = formData.get('caption') as string;
 		const sortOrder = parseInt(formData.get('sortOrder') as string, 10);
-		await updatePhoto(photoId, { altText, caption, sortOrder });
+		const rawPrice = (formData.get('priceInCents') as string | null) ?? '';
+		let priceInCents: number | null = null;
+		if (rawPrice.trim() !== '') {
+			const parsed = parseInt(rawPrice, 10);
+			if (isNaN(parsed) || parsed < 0) throw new Error('Price must be a non-negative integer');
+			priceInCents = parsed;
+		}
+		await updatePhoto(photoId, { altText, caption, sortOrder, priceInCents });
 		redirect(`/galleries/${formData.get('galleryId')}`);
 	});
 }
@@ -67,6 +74,19 @@ export default async function Page({ params }: { params: Promise<{ id: string; p
 							id="sortOrder"
 							name="sortOrder"
 							defaultValue={photo.sortOrder}
+							className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+						/>
+					</div>
+					<div>
+						<label htmlFor="priceInCents" className="block text-sm font-medium text-gray-700">Price (cents)</label>
+						<input
+							type="number"
+							id="priceInCents"
+							name="priceInCents"
+							min={0}
+							step={1}
+							defaultValue={photo.priceInCents ?? ''}
+							placeholder="Leave blank for no price"
 							className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
 						/>
 					</div>

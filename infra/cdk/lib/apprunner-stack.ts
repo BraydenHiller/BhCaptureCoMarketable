@@ -77,6 +77,11 @@ export class AppRunnerStack extends cdk.Stack {
       "StripeSecretKey",
       `bhcaptureco/stripe-secret-key/${props.environment}`
     );
+    const stripeWebhookSecret = secretsmanager.Secret.fromSecretNameV2(
+      this,
+      "StripeWebhookSecret",
+      `bhcaptureco/stripe-webhook-secret/${props.environment}`
+    );
 
     // Create IAM role for App Runner instance
     const instanceRole = new iam.Role(this, "AppRunnerInstanceRole", {
@@ -99,6 +104,7 @@ export class AppRunnerStack extends cdk.Stack {
     authSessionSecret.grantRead(instanceRole);
     databaseUrlSecret.grantRead(instanceRole);
     stripeSecretKey.grantRead(instanceRole);
+    stripeWebhookSecret.grantRead(instanceRole);
 
     // Grant instance role permission to manage Cognito users
     instanceRole.addToPolicy(
@@ -179,6 +185,10 @@ export class AppRunnerStack extends cdk.Stack {
                 {
                   name: "STRIPE_SECRET_KEY",
                   value: stripeSecretKey.secretArn,
+                },
+                {
+                  name: "STRIPE_WEBHOOK_SECRET",
+                  value: stripeWebhookSecret.secretArn,
                 },
               ],
             },

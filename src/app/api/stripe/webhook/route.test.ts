@@ -7,6 +7,9 @@ vi.mock('@/db/prisma', () => {
 				findUnique: vi.fn(),
 				update: vi.fn(),
 			},
+			purchase: {
+				update: vi.fn(),
+			},
 		},
 	};
 });
@@ -23,6 +26,13 @@ vi.mock('@/lib/stripe', () => {
 	};
 });
 
+vi.mock('@/lib/env', () => ({
+	env: {
+		STRIPE_SECRET_KEY: 'sk_test_fake',
+		STRIPE_WEBHOOK_SECRET: 'whsec_test',
+	},
+}));
+
 import { POST } from './route';
 
 type StripeEvent = {
@@ -35,7 +45,6 @@ type TenantRow = { id: string };
 describe('POST /api/stripe/webhook', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
-		process.env.STRIPE_WEBHOOK_SECRET = 'whsec_test';
 	});
 
 	it('returns 400 when stripe-signature header is missing', async () => {
@@ -123,6 +132,7 @@ describe('POST /api/stripe/webhook', () => {
 					findUnique: ReturnType<typeof vi.fn>;
 					update: ReturnType<typeof vi.fn>;
 				};
+				purchase: { update: ReturnType<typeof vi.fn> };
 			};
 		};
 
@@ -144,6 +154,135 @@ describe('POST /api/stripe/webhook', () => {
 		const data = await response.json();
 
 		expect(prismaMock.prisma.tenant.update).not.toHaveBeenCalled();
+		expect(response.status).toBe(200);
+		expect(data).toEqual({ received: true });
+	});
+
+	it('marks purchase completed on checkout.session.completed', async () => {
+		const stripeMock = (await import('@/lib/stripe')) as unknown as {
+			getStripe: () => { webhooks: { constructEvent: ReturnType<typeof vi.fn> } };
+		};
+		const prismaMock = (await import('@/db/prisma')) as unknown as {
+			prisma: {
+				tenant: {
+					findUnique: ReturnType<typeof vi.fn>;
+					update: ReturnType<typeof vi.fn>;
+				};
+				purchase: { update: ReturnType<typeof vi.fn> };
+			};
+		};
+
+		const stripe = stripeMock.getStripe();
+		stripe.webhooks.constructEvent.mockReturnValue({
+			type: 'checkout.session.completed',
+			data: {
+				object: {
+					id: 'cs_1',
+					metadata: { purchaseId: 'pur_abc' },
+					payment_intent: 'pi_xyz',
+				},
+			},
+		});
+
+		prismaMock.prisma.purchase.update.mockResolvedValue({});
+
+		const request = new Request('https://example.com/api/stripe/webhook', {
+			method: 'POST',
+			headers: { 'stripe-signature': 'sig_test' },
+			body: '{}',
+		});
+
+		const response = await POST(request);
+		const data = await response.json();
+
+		expect(prismaMock.prisma.purchase.update).toHaveBeenCalledWith({
+			where: { id: 'pur_abc' },
+			data: {
+				status: 'COMPLETED',
+				completedAt: expect.any(Date),
+				stripePaymentIntentId: 'pi_xyz',
+			},
+		});
+		expect(response.status).toBe(200);
+		expect(data).toEqual({ received: true });
+	});
+
+	it('ignores checkout.session.completed when metadata.purchaseId is missing', async () => {
+		const stripeMock = (await import('@/lib/stripe')) as unknown as {
+			getStripe: () => { webhooks: { constructEvent: ReturnType<typeof vi.fn> } };
+		};
+		const prismaMock = (await import('@/db/prisma')) as unknown as {
+			prisma: {
+				tenant: {
+					findUnique: ReturnType<typeof vi.fn>;
+					update: ReturnType<typeof vi.fn>;
+				};
+				purchase: { update: ReturnType<typeof vi.fn> };
+			};
+		};
+
+		const stripe = stripeMock.getStripe();
+		stripe.webhooks.constructEvent.mockReturnValue({
+			type: 'checkout.session.completed',
+			data: {
+				object: {
+					id: 'cs_2',
+					metadata: {},
+					payment_intent: 'pi_xyz',
+				},
+			},
+		});
+
+		const request = new Request('https://example.com/api/stripe/webhook', {
+			method: 'POST',
+			headers: { 'stripe-signature': 'sig_test' },
+			body: '{}',
+		});
+
+		const response = await POST(request);
+		const data = await response.json();
+
+		expect(prismaMock.prisma.purchase.update).not.toHaveBeenCalled();
+		expect(response.status).toBe(200);
+		expect(data).toEqual({ received: true });
+	});
+
+	it('ignores checkout.session.completed when payment_intent is missing', async () => {
+		const stripeMock = (await import('@/lib/stripe')) as unknown as {
+			getStripe: () => { webhooks: { constructEvent: ReturnType<typeof vi.fn> } };
+		};
+		const prismaMock = (await import('@/db/prisma')) as unknown as {
+			prisma: {
+				tenant: {
+					findUnique: ReturnType<typeof vi.fn>;
+					update: ReturnType<typeof vi.fn>;
+				};
+				purchase: { update: ReturnType<typeof vi.fn> };
+			};
+		};
+
+		const stripe = stripeMock.getStripe();
+		stripe.webhooks.constructEvent.mockReturnValue({
+			type: 'checkout.session.completed',
+			data: {
+				object: {
+					id: 'cs_3',
+					metadata: { purchaseId: 'pur_abc' },
+					payment_intent: null,
+				},
+			},
+		});
+
+		const request = new Request('https://example.com/api/stripe/webhook', {
+			method: 'POST',
+			headers: { 'stripe-signature': 'sig_test' },
+			body: '{}',
+		});
+
+		const response = await POST(request);
+		const data = await response.json();
+
+		expect(prismaMock.prisma.purchase.update).not.toHaveBeenCalled();
 		expect(response.status).toBe(200);
 		expect(data).toEqual({ received: true });
 	});

@@ -51,6 +51,7 @@ export async function updatePhoto(
 		altText?: string;
 		caption?: string;
 		sortOrder?: number;
+		priceInCents?: number | null;
 	}
 ) {
 	const tenantId = requireScopedTenantId();

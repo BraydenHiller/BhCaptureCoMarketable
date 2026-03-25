@@ -63,6 +63,12 @@ enum SelectionStatus {
   SUBMITTED
 }
 
+enum PurchaseStatus {
+  PENDING
+  COMPLETED
+  REFUNDED
+}
+
 model Tenant {
   id                        String         @id @default(cuid())
   name                      String
@@ -157,9 +163,12 @@ model Gallery {
   clientPasswordHash String?
   maxSelections      Int?
   proofingStatus     GalleryProofingStatus @default(PENDING)
+  purchaseEnabled    Boolean               @default(false)
+  purchaseAfterProof Boolean               @default(false)
   createdAt DateTime @default(now())
   photos    Photo[]
   selections ProofSelection[]
+  purchases  Purchase[]
 
   @@index([tenantId])
   @@index([tenantId, createdAt])
@@ -211,12 +220,50 @@ model Photo {
   height            Int?
   altText           String?
   caption           String?
+  priceInCents      Int?
   sortOrder         Int      @default(0)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
   gallery           Gallery  @relation(fields: [galleryId], references: [id], onDelete: Cascade)
   proofSelectionItems ProofSelectionItem[]
+  purchaseItems     PurchaseItem[]
 
   @@index([tenantId, galleryId])
   @@index([tenantId, createdAt])
+}
+
+model Purchase {
+  id                    String         @id @default(cuid())
+  tenantId              String
+  galleryId             String
+  clientUsername        String
+  status                PurchaseStatus @default(PENDING)
+  totalInCents          Int
+  platformFeeInCents    Int            @default(0)
+  stripePaymentIntentId String?        @unique
+  completedAt           DateTime?
+  refundedAt            DateTime?
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+  gallery               Gallery        @relation(fields: [galleryId], references: [id], onDelete: Cascade)
+  items                 PurchaseItem[]
+
+  @@index([tenantId, galleryId])
+  @@index([tenantId, status, createdAt])
+  @@index([tenantId, clientUsername])
+}
+
+model PurchaseItem {
+  id           String   @id @default(cuid())
+  tenantId     String
+  purchaseId   String
+  photoId      String
+  priceInCents Int
+  createdAt    DateTime @default(now())
+  purchase     Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  photo        Photo    @relation(fields: [photoId], references: [id], onDelete: Cascade)
+
+  @@unique([purchaseId, photoId])
+  @@index([tenantId, purchaseId])
+  @@index([tenantId, photoId])
 }

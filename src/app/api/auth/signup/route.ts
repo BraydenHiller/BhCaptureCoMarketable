@@ -89,6 +89,12 @@ export async function POST(request: NextRequest) {
 			}
 		}
 
+		console.error("[signup] caught error:", err);
+		if (err instanceof Error) {
+			console.error("[signup] message:", err.message);
+			console.error("[signup] stack:", err.stack);
+		}
+
 		if (err && typeof err === "object" && "name" in err && err.name === "InvalidPasswordException") {
 			return NextResponse.json(
 				{ error: "Password does not meet policy" },

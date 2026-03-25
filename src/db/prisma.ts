@@ -1,9 +1,24 @@
-import { readFileSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 
 declare global {
 	var __prisma: PrismaClient | undefined;
+}
+
+const LINUX_CA_PATH = '/usr/local/share/ca-certificates/aws-rds-us-east-2-bundle.crt';
+
+function resolveSSLCa(): string {
+	const envCa = process.env.NODE_EXTRA_CA_CERTS;
+	if (envCa && existsSync(envCa)) {
+		return readFileSync(envCa, 'utf8');
+	}
+	if (existsSync(LINUX_CA_PATH)) {
+		return readFileSync(LINUX_CA_PATH, 'utf8');
+	}
+	throw new Error(
+		`SSL CA bundle not found. Set NODE_EXTRA_CA_CERTS to the path of your CA certificate file for local SSL connections.`,
+	);
 }
 
 function createPrismaClient(): PrismaClient {
@@ -17,7 +32,7 @@ function createPrismaClient(): PrismaClient {
 				connectionString,
 				ssl: {
 					rejectUnauthorized: true,
-					ca: readFileSync('/usr/local/share/ca-certificates/aws-rds-us-east-2-bundle.crt', 'utf8'),
+					ca: resolveSSLCa(),
 				},
 			})
 		: new PrismaPg({ connectionString });

@@ -39,7 +39,7 @@ ENV NODE_EXTRA_CA_CERTS=/usr/local/share/ca-certificates/aws-rds-us-east-2-bundl
 RUN npx prisma generate --schema prisma/schema.prisma
 
 # Build Next.js (inline env vars are build-only placeholders, not persisted in the image)
-RUN AUTH_SESSION_SECRET=0123456789abcdef0123456789abcdef PLATFORM_S3_BUCKET=placeholder-bucket MAIN_DOMAIN=example.com COGNITO_APP_CLIENT_ID=placeholder-client NEXT_PUBLIC_APP_URL=http://localhost:3000 npm run build
+RUN AUTH_SESSION_SECRET=0123456789abcdef0123456789abcdef PLATFORM_S3_BUCKET=placeholder-bucket MAIN_DOMAIN=example.com COGNITO_APP_CLIENT_ID=placeholder-client NEXT_PUBLIC_APP_URL=http://localhost:3000 STRIPE_SECRET_KEY=sk_placeholder STRIPE_WEBHOOK_SECRET=whsec_placeholder npm run build
 
 # Remove dev dependencies for smaller runtime image
 RUN npm prune --omit=dev

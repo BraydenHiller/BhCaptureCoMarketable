@@ -3,7 +3,7 @@ import { prisma } from '@/db/prisma';
 import { notFound, redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { validateTenantSlug } from '@/lib/tenantSlug';
-import { BillingStatus, TenantStatus } from '@prisma/client';
+import { BillingStatus, TenantStatus, PurchaseStatus } from '@prisma/client';
 import Link from 'next/link';
 
 export const dynamic = 'force-dynamic';
@@ -37,6 +37,23 @@ export default async function Page({
 
 	const tenantDomain = await prisma.tenantDomain.findUnique({
 		where: { tenantId: id },
+	});
+
+	const purchases = await prisma.purchase.findMany({
+		where: { tenantId: id },
+		orderBy: { createdAt: 'desc' },
+		take: 50,
+		select: {
+			id: true,
+			galleryId: true,
+			clientUsername: true,
+			status: true,
+			totalInCents: true,
+			completedAt: true,
+			refundedAt: true,
+			createdAt: true,
+			_count: { select: { items: true } },
+		},
 	});
 
 	const path = `/admin/tenants/${id}`;
@@ -200,6 +217,43 @@ export default async function Page({
 		await prisma.tenant.update({
 			where: { id },
 			data: { storageUsedBytes: used },
+		});
+
+		revalidatePath(path);
+		redirect(path);
+	}
+
+	async function overridePurchaseStatus(formData: FormData) {
+		'use server';
+		await requireMasterAdminSession();
+
+		const purchaseId = formData.get('purchaseId') as string;
+		const raw = formData.get('status') as string;
+
+		if (!purchaseId || !Object.values(PurchaseStatus).includes(raw as PurchaseStatus)) {
+			throw new Error('INVALID_PURCHASE_STATUS');
+		}
+
+		const status = raw as PurchaseStatus;
+		const data: Record<string, unknown> = { status };
+
+		if (status === 'COMPLETED') {
+			const existing = await prisma.purchase.findUnique({
+				where: { id: purchaseId },
+				select: { completedAt: true },
+			});
+			if (!existing?.completedAt) {
+				data.completedAt = new Date();
+			}
+		}
+
+		if (status === 'REFUNDED') {
+			data.refundedAt = new Date();
+		}
+
+		await prisma.purchase.update({
+			where: { id: purchaseId },
+			data,
 		});
 
 		revalidatePath(path);
@@ -407,6 +461,63 @@ export default async function Page({
 								Force Remove Domain
 							</button>
 						</form>
+					</div>
+				)}
+			</div>
+
+			<div className="border border-gray-300 p-4 space-y-4">
+				<h2 className="text-xl font-bold">Purchases</h2>
+				{purchases.length === 0 ? (
+					<p className="text-gray-600">No purchases found.</p>
+				) : (
+					<div className="overflow-x-auto">
+						<table className="min-w-full text-sm">
+							<thead>
+								<tr className="border-b text-left">
+									<th className="py-1 pr-2">ID</th>
+									<th className="py-1 pr-2">Gallery</th>
+									<th className="py-1 pr-2">Client</th>
+									<th className="py-1 pr-2">Status</th>
+									<th className="py-1 pr-2">Total</th>
+									<th className="py-1 pr-2">Items</th>
+									<th className="py-1 pr-2">Created</th>
+									<th className="py-1">Override</th>
+								</tr>
+							</thead>
+							<tbody>
+								{purchases.map((p) => (
+									<tr key={p.id} className="border-b">
+										<td className="py-1 pr-2 font-mono text-xs">{p.id.slice(0, 8)}…</td>
+										<td className="py-1 pr-2 font-mono text-xs">{p.galleryId.slice(0, 8)}…</td>
+										<td className="py-1 pr-2">{p.clientUsername}</td>
+										<td className="py-1 pr-2">{p.status}</td>
+										<td className="py-1 pr-2">{p.totalInCents}¢</td>
+										<td className="py-1 pr-2">{p._count.items}</td>
+										<td className="py-1 pr-2 text-xs">{p.createdAt.toISOString()}</td>
+										<td className="py-1">
+											<form action={overridePurchaseStatus} className="flex gap-1">
+												<input type="hidden" name="purchaseId" value={p.id} />
+												<select
+													name="status"
+													defaultValue={p.status}
+													className="border border-gray-300 px-1 py-0.5 rounded text-xs"
+												>
+													<option value="PENDING">PENDING</option>
+													<option value="COMPLETED">COMPLETED</option>
+													<option value="REFUNDED">REFUNDED</option>
+												</select>
+												<button
+													type="submit"
+													className="bg-blue-500 text-white px-2 py-0.5 rounded text-xs hover:bg-blue-600"
+												>
+													Set
+												</button>
+											</form>
+										</td>
+									</tr>
+								))}
+							</tbody>
+						</table>
 					</div>
 				)}
 			</div>

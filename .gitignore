@@ -42,3 +42,7 @@ yarn-error.log*
 next-env.d.ts
 
 /src/generated/prisma
+cdk.out/ 
+cdk.context.json 
+*.id 
+github-deploy-trust-policy.json 
