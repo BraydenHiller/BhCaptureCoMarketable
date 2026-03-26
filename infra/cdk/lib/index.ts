@@ -23,7 +23,16 @@ const env: cdk.Environment = {
 };
 
 const platformDomain =
-  app.node.tryGetContext("platformDomain") || "app.example.com";
+  app.node.tryGetContext("platformDomain") ||
+  (deployEnv === "production"
+    ? "bmsfsguypd.us-east-2.awsapprunner.com"
+    : "ks8mw3ayss.us-east-2.awsapprunner.com");
+
+// Revert to previous hardcoded values for AppRunnerStack props
+const cognitoAppClientId = "57cm0lk54oqbh3ei6j93ig9529";
+const cognitoUserPoolId = "us-east-2_3R8foJYj2";
+const platformS3Bucket = "bhcaptureco-assets-staging-031277186672";
+
 const gitHubOwner = app.node.tryGetContext("gitHubOwner") || "your-org";
 const gitHubRepo = app.node.tryGetContext("gitHubRepo") || "bhcaptureco-marketable";
 
@@ -50,10 +59,10 @@ const appRunnerStack = new AppRunnerStack(app, `${stackPrefix}-apprunner`, {
   vpc: networkStack.vpc,
   environment: deployEnv,
   env,
-  mainDomain: "ks8mw3ayss.us-east-2.awsapprunner.com",
-  cognitoAppClientId: "57cm0lk54oqbh3ei6j93ig9529",
-  cognitoUserPoolId: "us-east-2_3R8foJYj2",
-  platformS3Bucket: "bhcaptureco-assets-staging-031277186672",
+  mainDomain: platformDomain,
+  cognitoAppClientId,
+  cognitoUserPoolId,
+  platformS3Bucket,
   stackName: deployEnv === "staging" ? "AppRunnerStack-staging" : undefined,
   description: `App Runner infrastructure for BhCaptureCo (${deployEnv})`,
 });
