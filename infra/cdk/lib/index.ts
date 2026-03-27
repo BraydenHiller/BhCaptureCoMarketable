@@ -28,9 +28,15 @@ const platformDomain =
     ? "bmsfsguypd.us-east-2.awsapprunner.com"
     : "ks8mw3ayss.us-east-2.awsapprunner.com");
 
-// Revert to previous hardcoded values for AppRunnerStack props
-const cognitoAppClientId = "57cm0lk54oqbh3ei6j93ig9529";
-const cognitoUserPoolId = "us-east-2_3R8foJYj2";
+// Environment-aware Cognito values for AppRunnerStack props
+const cognitoAppClientId =
+  deployEnv === "production"
+    ? "1kkke5rvc85fdjsdst4kka0snv"
+    : "57cm0lk54oqbh3ei6j93ig9529";
+const cognitoUserPoolId =
+  deployEnv === "production"
+    ? "us-east-2_Siu3cMDCX"
+    : "us-east-2_3R8foJYj2";
 const platformS3Bucket = "bhcaptureco-assets-staging-031277186672";
 
 const gitHubOwner = app.node.tryGetContext("gitHubOwner") || "your-org";

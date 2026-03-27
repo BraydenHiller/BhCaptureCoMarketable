@@ -27,15 +27,12 @@ function createPrismaClient(): PrismaClient {
 		throw new Error('DATABASE_URL is required');
 	}
 
-	const adapter = connectionString.includes('sslmode=require')
-		? new PrismaPg({
-				connectionString,
-				ssl: {
-					rejectUnauthorized: true,
-					ca: resolveSSLCa(),
-				},
-			})
-		: new PrismaPg({ connectionString });
+	const sslConfig =
+		process.env.NODE_ENV === 'production'
+			? { rejectUnauthorized: true, ca: resolveSSLCa() }
+			: { rejectUnauthorized: false };
+
+	const adapter = new PrismaPg({ connectionString, ssl: sslConfig });
 
 	return new PrismaClient({ adapter });
 }

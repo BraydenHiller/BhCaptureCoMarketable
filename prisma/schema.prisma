@@ -1,15 +1,220 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
+}
+
+model Tenant {
+  id                       String        @id @default(cuid())
+  name                     String
+  slug                     String        @unique
+  createdAt                DateTime      @default(now())
+  updatedAt                DateTime      @updatedAt
+  billingStatus            BillingStatus @default(PENDING)
+  status                   TenantStatus  @default(ACTIVE)
+  stripeAccountId          String?       @unique
+  stripeOnboardingComplete Boolean       @default(false)
+  storageEnforced          Boolean       @default(true)
+  storageLimitBytes        BigInt        @default(1073741824)
+  storageUsedBytes         BigInt        @default(0)
+  auditLogs                AuditLog[]
+  memberships              Membership[]
+  domain                   TenantDomain?
+  users                    User[]
+}
+
+model TenantDomain {
+  id                String             @id @default(cuid())
+  tenantId          String             @unique
+  hostname          String             @unique
+  status            TenantDomainStatus @default(PENDING_VERIFICATION)
+  verificationToken String             @unique
+  txtRecordName     String
+  txtRecordValue    String
+  verifiedAt        DateTime?
+  activatedAt       DateTime?
+  disabledAt        DateTime?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  tenant            Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+}
+
+model User {
+  id          String       @id @default(cuid())
+  email       String       @unique
+  name        String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  cognitoSub  String?      @unique
+  role        UserRole?
+  status      UserStatus   @default(ACTIVE)
+  tenantId    String?
+  auditLogs   AuditLog[]   @relation("AuditActor")
+  memberships Membership[]
+  tenant      Tenant?      @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+  @@index([role])
+}
+
+model Membership {
+  id        String         @id @default(cuid())
+  tenantId  String
+  userId    String
+  role      MembershipRole @default(MEMBER)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  tenant    Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, userId])
+  @@index([tenantId])
+  @@index([userId])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  tenantId  String
+  actorId   String?
+  action    String
+  target    String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+  actor     User?    @relation("AuditActor", fields: [actorId], references: [id])
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, createdAt])
+  @@index([actorId, createdAt])
+}
+
+model Gallery {
+  id                 String                @id @default(cuid())
+  tenantId           String
+  name               String
+  createdAt          DateTime              @default(now())
+  accessMode         GalleryAccessMode     @default(PRIVATE)
+  clientPasswordHash String?
+  clientUsername     String?
+  maxSelections      Int?
+  proofingStatus     GalleryProofingStatus @default(PENDING)
+  photos             Photo[]
+  selections         ProofSelection[]
+
+  // Sprint-021 purchasing fields
+  purchaseEnabled    Boolean           @default(false)
+  purchaseAfterProof Boolean           @default(false)
+
+  purchases          Purchase[]
+
+  @@index([tenantId])
+  @@index([tenantId, createdAt])
+  @@index([accessMode])
+}
+
+model ProofSelection {
+  id             String               @id @default(cuid())
+  tenantId       String
+  galleryId      String
+  clientUsername String
+  status         SelectionStatus      @default(DRAFT)
+  submittedAt    DateTime?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+  gallery        Gallery              @relation(fields: [galleryId], references: [id], onDelete: Cascade)
+  items          ProofSelectionItem[]
+
+  @@unique([galleryId, clientUsername])
+  @@index([tenantId, galleryId])
+  @@index([tenantId, status, createdAt])
+}
+
+model ProofSelectionItem {
+  id          String         @id @default(cuid())
+  tenantId    String
+  selectionId String
+  photoId     String
+  note        String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  photo       Photo          @relation(fields: [photoId], references: [id], onDelete: Cascade)
+  selection   ProofSelection @relation(fields: [selectionId], references: [id], onDelete: Cascade)
+
+  @@unique([selectionId, photoId])
+  @@index([tenantId, selectionId])
+  @@index([tenantId, photoId])
+}
+
+model Photo {
+  id                  String               @id @default(cuid())
+  tenantId            String
+  galleryId           String
+  storageKey          String?
+  originalFilename    String?
+    @@index([tenantId, galleryId])
+    @@index([tenantId, createdAt])
+  mimeType            String?
+  bytes               Int?
+  width               Int?
+  height              Int?
+  altText             String?
+  caption             String?
+  sortOrder           Int                  @default(0)
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  gallery             Gallery              @relation(fields: [galleryId], references: [id], onDelete: Cascade)
+  proofSelectionItems ProofSelectionItem[]
+
+  // Sprint-021 purchasing field
+  priceInCents       Int?
+
+  purchaseItems      PurchaseItem[]
+  @@index([tenantId, galleryId], map: "Photo_tenantId_galleryId_idx_v2")
+  @@index([tenantId, createdAt], map: "Photo_tenantId_createdAt_idx_v2")
+}
+model Purchase {
+  id                    String         @id @default(cuid())
+  tenantId              String
+  galleryId             String
+  clientUsername        String
+  status                PurchaseStatus @default(PENDING)
+  totalInCents          Int
+  platformFeeInCents    Int            @default(0)
+  stripePaymentIntentId String?        @unique
+  completedAt           DateTime?
+  refundedAt            DateTime?
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+  gallery               Gallery        @relation(fields: [galleryId], references: [id], onDelete: Cascade)
+  items                 PurchaseItem[]
+
+  @@index([tenantId, galleryId])
+  @@index([tenantId, status, createdAt])
+  @@index([tenantId, clientUsername])
+}
+
+model PurchaseItem {
+  id           String   @id @default(cuid())
+  tenantId     String
+  purchaseId   String
+  photoId      String
+  priceInCents Int
+  createdAt    DateTime @default(now())
+  purchase     Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  photo        Photo    @relation(fields: [photoId], references: [id], onDelete: Cascade)
+
+  @@unique([purchaseId, photoId])
+  @@index([tenantId, purchaseId])
+  @@index([tenantId, photoId])
+}
+
+enum PurchaseStatus {
+  PENDING
+  COMPLETED
+  REFUNDED
 }
 
 enum MembershipRole {
@@ -61,209 +266,4 @@ enum GalleryProofingStatus {
 enum SelectionStatus {
   DRAFT
   SUBMITTED
-}
-
-enum PurchaseStatus {
-  PENDING
-  COMPLETED
-  REFUNDED
-}
-
-model Tenant {
-  id                        String         @id @default(cuid())
-  name                      String
-  slug                      String         @unique
-  status                    TenantStatus   @default(ACTIVE)
-  billingStatus             BillingStatus  @default(PENDING)
-  stripeAccountId           String?        @unique
-  stripeOnboardingComplete  Boolean        @default(false)
-  storageLimitBytes         BigInt         @default(1073741824)
-  storageUsedBytes          BigInt         @default(0)
-  storageEnforced           Boolean        @default(true)
-  createdAt                 DateTime       @default(now())
-  updatedAt                 DateTime       @updatedAt
-  memberships               Membership[]
-  auditLogs                 AuditLog[]
-  users                     User[]
-  domain                    TenantDomain?
-}
-
-model TenantDomain {
-  id                String             @id @default(cuid())
-  tenantId          String             @unique
-  hostname          String             @unique
-  status            TenantDomainStatus @default(PENDING_VERIFICATION)
-  verificationToken String             @unique
-  txtRecordName     String
-  txtRecordValue    String
-  verifiedAt        DateTime?
-  activatedAt       DateTime?
-  disabledAt        DateTime?
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
-  tenant            Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-
-  @@index([status])
-}
-
-model User {
-  id          String       @id @default(cuid())
-  email       String       @unique
-  name        String?
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  role        UserRole?
-  status      UserStatus   @default(ACTIVE)
-  cognitoSub  String?      @unique
-  tenantId    String?
-  memberships Membership[]
-  auditLogs   AuditLog[]   @relation("AuditActor")
-  tenant      Tenant?      @relation(fields: [tenantId], references: [id])
-
-  @@index([tenantId])
-  @@index([role])
-}
-
-model Membership {
-  id        String         @id @default(cuid())
-  tenantId  String
-  userId    String
-  role      MembershipRole @default(MEMBER)
-  createdAt DateTime       @default(now())
-  updatedAt DateTime       @updatedAt
-  tenant    Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([tenantId, userId])
-  @@index([tenantId])
-  @@index([userId])
-}
-
-model AuditLog {
-  id        String   @id @default(cuid())
-  tenantId  String
-  actorId   String?
-  action    String
-  target    String?
-  metadata  Json?
-  createdAt DateTime @default(now())
-  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  actor     User?    @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
-
-  @@index([tenantId, createdAt])
-  @@index([actorId, createdAt])
-}
-
-model Gallery {
-  id        String   @id @default(cuid())
-  tenantId  String
-  name      String
-  accessMode         GalleryAccessMode @default(PRIVATE)
-  clientUsername     String?
-  clientPasswordHash String?
-  maxSelections      Int?
-  proofingStatus     GalleryProofingStatus @default(PENDING)
-  purchaseEnabled    Boolean               @default(false)
-  purchaseAfterProof Boolean               @default(false)
-  createdAt DateTime @default(now())
-  photos    Photo[]
-  selections ProofSelection[]
-  purchases  Purchase[]
-
-  @@index([tenantId])
-  @@index([tenantId, createdAt])
-  @@index([accessMode])
-}
-
-model ProofSelection {
-  id             String          @id @default(cuid())
-  tenantId       String
-  galleryId      String
-  clientUsername String
-  status         SelectionStatus @default(DRAFT)
-  submittedAt    DateTime?
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
-  gallery        Gallery         @relation(fields: [galleryId], references: [id], onDelete: Cascade)
-  items          ProofSelectionItem[]
-
-  @@unique([galleryId, clientUsername])
-  @@index([tenantId, galleryId])
-  @@index([tenantId, status, createdAt])
-}
-
-model ProofSelectionItem {
-  id          String   @id @default(cuid())
-  tenantId    String
-  selectionId String
-  photoId     String
-  note        String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  selection   ProofSelection @relation(fields: [selectionId], references: [id], onDelete: Cascade)
-  photo       Photo          @relation(fields: [photoId], references: [id], onDelete: Cascade)
-
-  @@unique([selectionId, photoId])
-  @@index([tenantId, selectionId])
-  @@index([tenantId, photoId])
-}
-
-model Photo {
-  id                String   @id @default(cuid())
-  tenantId          String
-  galleryId         String
-  storageKey        String?
-  originalFilename  String?
-  mimeType          String?
-  bytes             Int?
-  width             Int?
-  height            Int?
-  altText           String?
-  caption           String?
-  priceInCents      Int?
-  sortOrder         Int      @default(0)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  gallery           Gallery  @relation(fields: [galleryId], references: [id], onDelete: Cascade)
-  proofSelectionItems ProofSelectionItem[]
-  purchaseItems     PurchaseItem[]
-
-  @@index([tenantId, galleryId])
-  @@index([tenantId, createdAt])
-}
-
-model Purchase {
-  id                    String         @id @default(cuid())
-  tenantId              String
-  galleryId             String
-  clientUsername        String
-  status                PurchaseStatus @default(PENDING)
-  totalInCents          Int
-  platformFeeInCents    Int            @default(0)
-  stripePaymentIntentId String?        @unique
-  completedAt           DateTime?
-  refundedAt            DateTime?
-  createdAt             DateTime       @default(now())
-  updatedAt             DateTime       @updatedAt
-  gallery               Gallery        @relation(fields: [galleryId], references: [id], onDelete: Cascade)
-  items                 PurchaseItem[]
-
-  @@index([tenantId, galleryId])
-  @@index([tenantId, status, createdAt])
-  @@index([tenantId, clientUsername])
-}
-
-model PurchaseItem {
-  id           String   @id @default(cuid())
-  tenantId     String
-  purchaseId   String
-  photoId      String
-  priceInCents Int
-  createdAt    DateTime @default(now())
-  purchase     Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
-  photo        Photo    @relation(fields: [photoId], references: [id], onDelete: Cascade)
-
-  @@unique([purchaseId, photoId])
-  @@index([tenantId, purchaseId])
-  @@index([tenantId, photoId])
 }
