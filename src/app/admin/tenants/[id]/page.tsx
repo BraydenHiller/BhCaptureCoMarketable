@@ -226,6 +226,7 @@ export default async function Page({
 
 // Page-local wrapper for UI form action
 async function overridePurchaseStatus(formData: FormData) {
+        'use server';
 	const purchaseId = formData.get('purchaseId') as string;
 	const raw = formData.get('status') as string;
 	const status = raw as PurchaseStatus;
@@ -553,5 +554,8 @@ async function overridePurchaseStatus(formData: FormData) {
 	);
 
 }
+
+
+
 
 
