@@ -1,0 +1,9 @@
+{
+  "commands": [
+    "export PGPASSWORD='NewTempPass1234'",
+    "export PGSSLMODE=require",
+    "psql -h datastack-staging-databaseb269d8bb-quozjnaozdbv.cz2ac6quymbd.us-east-2.rds.amazonaws.com -U postgres -d bhcaptureco -c \"SELECT table_name, column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name IN ('Purchase','PurchaseItem','DownloadEntitlement') ORDER BY table_name, ordinal_position;\"",
+    "psql -h datastack-staging-databaseb269d8bb-quozjnaozdbv.cz2ac6quymbd.us-east-2.rds.amazonaws.com -U postgres -d bhcaptureco -c \"SELECT COUNT(*) AS entitlement_count FROM \\\"DownloadEntitlement\\\";\"",
+    "psql -h datastack-staging-databaseb269d8bb-quozjnaozdbv.cz2ac6quymbd.us-east-2.rds.amazonaws.com -U postgres -d bhcaptureco -c \"SELECT * FROM \\\"DownloadEntitlement\\\" ORDER BY \\\"createdAt\\\" DESC LIMIT 20;\""
+  ]
+}

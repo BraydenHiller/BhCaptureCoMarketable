@@ -1,4 +1,19 @@
-import { S3Client } from '@aws-sdk/client-s3';
+import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+export async function generateDownloadUrl(storageKey: string): Promise<string> {
+	const client = getS3Client();
+
+	const command = new GetObjectCommand({
+		Bucket: env.PLATFORM_S3_BUCKET,
+		Key: storageKey,
+	});
+
+	const url = await getSignedUrl(client, command, {
+		expiresIn: 60, // 1 minute
+	});
+
+	return url;
+}
 import { env } from '@/lib/env';
 
 type TenantPhotoKeyParams = {

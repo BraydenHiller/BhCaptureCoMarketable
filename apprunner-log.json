@@ -1,0 +1,15 @@
+﻿{
+    "events": [
+        {
+            "timestamp": 1774672613971,
+            "message": "> bhcaptureco-marketable@0.1.0 start",
+            "ingestionTime": 1774672618691
+        },
+        {
+            "timestamp": 1774672613971,
+            "message": "> next start",
+            "ingestionTime": 1774672618691
+        },
+        {
+            "timestamp": 1774672614581,
+            "message": 

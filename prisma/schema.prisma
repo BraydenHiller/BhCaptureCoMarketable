@@ -44,18 +44,20 @@ model TenantDomain {
 }
 
 model User {
-  id          String       @id @default(cuid())
-  email       String       @unique
-  name        String?
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  cognitoSub  String?      @unique
-  role        UserRole?
-  status      UserStatus   @default(ACTIVE)
-  tenantId    String?
-  auditLogs   AuditLog[]   @relation("AuditActor")
-  memberships Membership[]
-  tenant      Tenant?      @relation(fields: [tenantId], references: [id])
+  id                          String                @id @default(cuid())
+  email                       String                @unique
+  name                        String?
+  createdAt                   DateTime              @default(now())
+  updatedAt                   DateTime              @updatedAt
+  cognitoSub                  String?               @unique
+  role                        UserRole?
+  status                      UserStatus            @default(ACTIVE)
+  tenantId                    String?
+  auditLogs                   AuditLog[]            @relation("AuditActor")
+  grantedDownloadEntitlements DownloadEntitlement[] @relation("GrantedByUser")
+  revokedDownloadEntitlements DownloadEntitlement[] @relation("RevokedByUser")
+  memberships                 Membership[]
+  tenant                      Tenant?               @relation(fields: [tenantId], references: [id])
 
   @@index([tenantId])
   @@index([role])
@@ -92,23 +94,23 @@ model AuditLog {
 }
 
 model Gallery {
-  id                 String                @id @default(cuid())
-  tenantId           String
-  name               String
-  createdAt          DateTime              @default(now())
-  accessMode         GalleryAccessMode     @default(PRIVATE)
-  clientPasswordHash String?
-  clientUsername     String?
-  maxSelections      Int?
-  proofingStatus     GalleryProofingStatus @default(PENDING)
-  photos             Photo[]
-  selections         ProofSelection[]
-
-  // Sprint-021 purchasing fields
-  purchaseEnabled    Boolean           @default(false)
-  purchaseAfterProof Boolean           @default(false)
-
-  purchases          Purchase[]
+  id                   String                @id @default(cuid())
+  tenantId             String
+  name                 String
+  createdAt            DateTime              @default(now())
+  accessMode           GalleryAccessMode     @default(PRIVATE)
+  clientPasswordHash   String?
+  clientUsername       String?
+  maxSelections        Int?
+  proofingStatus       GalleryProofingStatus @default(PENDING)
+  purchaseEnabled      Boolean               @default(false)
+  purchaseAfterProof   Boolean               @default(false)
+  downloadExpiryDays   Int?
+  previewLowResEnabled Boolean               @default(true)
+  downloadEntitlements DownloadEntitlement[]
+  photos               Photo[]
+  selections           ProofSelection[]
+  purchases            Purchase[]
 
   @@index([tenantId])
   @@index([tenantId, createdAt])
@@ -149,46 +151,72 @@ model ProofSelectionItem {
 }
 
 model Photo {
-  id                  String               @id @default(cuid())
-  tenantId            String
-  galleryId           String
-  storageKey          String?
-  originalFilename    String?
-    @@index([tenantId, galleryId])
-    @@index([tenantId, createdAt])
-  mimeType            String?
-  bytes               Int?
-  width               Int?
-  height              Int?
-  altText             String?
-  caption             String?
-  sortOrder           Int                  @default(0)
-  createdAt           DateTime             @default(now())
-  updatedAt           DateTime             @updatedAt
-  gallery             Gallery              @relation(fields: [galleryId], references: [id], onDelete: Cascade)
-  proofSelectionItems ProofSelectionItem[]
+  id                   String                @id @default(cuid())
+  tenantId             String
+  galleryId            String
+  storageKey           String?
+  originalFilename     String?
+  mimeType             String?
+  bytes                Int?
+  width                Int?
+  height               Int?
+  altText              String?
+  caption              String?
+  sortOrder            Int                   @default(0)
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  priceInCents         Int?
+  downloadEntitlements DownloadEntitlement[]
+  gallery              Gallery               @relation(fields: [galleryId], references: [id], onDelete: Cascade)
+  proofSelectionItems  ProofSelectionItem[]
+  purchaseItems        PurchaseItem[]
 
-  // Sprint-021 purchasing field
-  priceInCents       Int?
-
-  purchaseItems      PurchaseItem[]
-  @@index([tenantId, galleryId], map: "Photo_tenantId_galleryId_idx_v2")
-  @@index([tenantId, createdAt], map: "Photo_tenantId_createdAt_idx_v2")
+  @@index([tenantId, galleryId])
+  @@index([tenantId, createdAt])
 }
+
+model DownloadEntitlement {
+  id              String                    @id @default(cuid())
+  tenantId        String
+  galleryId       String
+  clientUsername  String
+  photoId         String
+  purchaseId      String?
+  grantedByUserId String?
+  revokedByUserId String?
+  status          DownloadEntitlementStatus @default(ACTIVE)
+  grantedAt       DateTime                  @default(now())
+  expiresAt       DateTime?
+  revokedAt       DateTime?
+  createdAt       DateTime                  @default(now())
+  updatedAt       DateTime                  @updatedAt
+  gallery         Gallery                   @relation(fields: [galleryId], references: [id], onDelete: Cascade)
+  grantedByUser   User?                     @relation("GrantedByUser", fields: [grantedByUserId], references: [id])
+  photo           Photo                     @relation(fields: [photoId], references: [id], onDelete: Cascade)
+  purchase        Purchase?                 @relation(fields: [purchaseId], references: [id])
+  revokedByUser   User?                     @relation("RevokedByUser", fields: [revokedByUserId], references: [id])
+
+  @@unique([galleryId, clientUsername, photoId])
+  @@index([tenantId])
+  @@index([expiresAt])
+  @@index([status])
+}
+
 model Purchase {
-  id                    String         @id @default(cuid())
+  id                    String                @id @default(cuid())
   tenantId              String
   galleryId             String
   clientUsername        String
-  status                PurchaseStatus @default(PENDING)
+  status                PurchaseStatus        @default(PENDING)
   totalInCents          Int
-  platformFeeInCents    Int            @default(0)
-  stripePaymentIntentId String?        @unique
+  platformFeeInCents    Int                   @default(0)
+  stripePaymentIntentId String?               @unique
   completedAt           DateTime?
   refundedAt            DateTime?
-  createdAt             DateTime       @default(now())
-  updatedAt             DateTime       @updatedAt
-  gallery               Gallery        @relation(fields: [galleryId], references: [id], onDelete: Cascade)
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  downloadEntitlements  DownloadEntitlement[]
+  gallery               Gallery               @relation(fields: [galleryId], references: [id], onDelete: Cascade)
   items                 PurchaseItem[]
 
   @@index([tenantId, galleryId])
@@ -202,13 +230,17 @@ model PurchaseItem {
   purchaseId   String
   photoId      String
   priceInCents Int
-  createdAt    DateTime @default(now())
-  purchase     Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
   photo        Photo    @relation(fields: [photoId], references: [id], onDelete: Cascade)
+  purchase     Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
 
   @@unique([purchaseId, photoId])
   @@index([tenantId, purchaseId])
   @@index([tenantId, photoId])
+}
+
+enum DownloadEntitlementStatus {
+  ACTIVE
+  REVOKED
 }
 
 enum PurchaseStatus {

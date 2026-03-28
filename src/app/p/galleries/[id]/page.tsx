@@ -135,8 +135,8 @@ export default async function Page({ params, searchParams }: PageProps) {
 				const completed = await listClientCompletedEntitlements(galleryId, galleryData.clientUsername);
 				const idSet = new Set<string>();
 				for (const p of completed) {
-					for (const item of p.items) {
-						idSet.add(item.photoId);
+					if (p.photo?.id) {
+						idSet.add(p.photo.id);
 					}
 				}
 				entitledPhotoIds = Array.from(idSet);

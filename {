@@ -1,0 +1,15 @@
+import { NextRequest, NextResponse } from "next/server";
+import { withTenantRequestScope } from "@/lib/withTenantRequestScope";
+import { getRequestDb } from "@/db/requestDb";
+import { requireScopedTenantId } from "@/lib/requestScope";
+import { getClientGallerySession } from "@/lib/auth/clientGallerySession";
+import { isClientSessionValid } from "@/lib/galleryClientAuth";
+import { generateDownloadUrl } from "@/lib/storage/s3";
+
+export async function GET(
+    request: NextRequest,
+    { params }: { params: Promise<{ id: string; photoId: string }> },
+) {
+    const { id: galleryId, photoId } = await params;
+
+    return withTenantRequestScope(async (

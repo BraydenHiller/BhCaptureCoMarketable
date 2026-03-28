@@ -1,0 +1,5 @@
+{
+  "commands": [
+    "bash -lc \"echo > /dev/tcp/datastack-staging-databaseb269d8bb-quozjnaozdbv.cz2ac6quymbd.us-east-2.rds.amazonaws.com/5432 && echo CONNECTED || echo FAILED\""
+  ]
+}

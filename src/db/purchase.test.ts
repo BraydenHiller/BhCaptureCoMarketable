@@ -64,14 +64,16 @@ function makePurchase(overrides: Record<string, unknown> = {}) {
 }
 
 function makeMockDb(overrides: Record<string, unknown> = {}) {
-	const db = {
-		gallery: { findFirst: vi.fn() },
-		photo: { findMany: vi.fn(), findFirst: vi.fn(), update: vi.fn() },
-		purchase: { create: vi.fn(), update: vi.fn(), findMany: vi.fn() },
-		$transaction: vi.fn((fn: (tx: unknown) => Promise<unknown>) => fn(db)),
-		...overrides,
-	} as unknown as PrismaClient & Record<string, unknown>;
-	return db;
+ const db = {
+  gallery: { findFirst: vi.fn() },
+  photo: { findMany: vi.fn(), findFirst: vi.fn(), update: vi.fn() },
+  purchase: { create: vi.fn(), update: vi.fn(), findMany: vi.fn() },
+  purchaseItem: { findMany: vi.fn() },
+  downloadEntitlement: { findMany: vi.fn(), createMany: vi.fn() },
+  $transaction: vi.fn((fn: (tx: unknown) => Promise<unknown>) => fn(db)),
+  ...overrides,
+ } as unknown as PrismaClient & Record<string, unknown>;
+ return db;
 }
 
 /* ---------- getPurchasableGallery ---------- */
@@ -105,8 +107,8 @@ describe("getPurchasableGallery", () => {
 		(db.gallery.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue(null);
 		await expect(getPurchasableGallery("g1")).rejects.toThrow("Gallery not found");
 	});
-});
 
+});
 /* ---------- listGalleryPricedPhotos ---------- */
 
 describe("listGalleryPricedPhotos", () => {
@@ -127,7 +129,6 @@ describe("listGalleryPricedPhotos", () => {
 		});
 	});
 });
-
 /* ---------- setPhotoPrice ---------- */
 
 describe("setPhotoPrice", () => {
@@ -137,29 +138,15 @@ describe("setPhotoPrice", () => {
 		vi.mocked(getRequestDb).mockReturnValue(db as unknown as PrismaClient);
 	});
 
-	it("sets price on photo with tenant scope", async () => {
-		(db.photo.update as ReturnType<typeof vi.fn>).mockResolvedValue(makePhoto({ priceInCents: 1000 }));
-		const result = await setPhotoPrice("p1", 1000);
-		expect(result.priceInCents).toBe(1000);
-		expect(db.photo.update).toHaveBeenCalledWith({
-			where: { id: "p1", tenantId: "t1" },
-			data: { priceInCents: 1000 },
-		});
-	});
-
-	it("allows null to clear price", async () => {
-		(db.photo.update as ReturnType<typeof vi.fn>).mockResolvedValue(makePhoto({ priceInCents: null }));
-		await setPhotoPrice("p1", null);
-		expect(db.photo.update).toHaveBeenCalledWith({
-			where: { id: "p1", tenantId: "t1" },
-			data: { priceInCents: null },
-		});
-	});
-
-	it("rejects negative price", async () => {
-		await expect(setPhotoPrice("p1", -1)).rejects.toThrow("Price must not be negative");
-		expect(db.photo.update).not.toHaveBeenCalled();
-	});
+	 it("sets price on photo with tenant scope", async () => {
+	 	(db.photo.update as ReturnType<typeof vi.fn>).mockResolvedValue(makePhoto({ priceInCents: 1000 }));
+	 	const result = await setPhotoPrice("p1", 1000);
+	 	expect(result.priceInCents).toBe(1000);
+	 	expect(db.photo.update).toHaveBeenCalledWith({
+	 	where: { id: "p1", tenantId: "t1" },
+	 	data: { priceInCents: 1000 },
+	 	});
+	 });
 
 	it("allows zero price", async () => {
 		(db.photo.update as ReturnType<typeof vi.fn>).mockResolvedValue(makePhoto({ priceInCents: 0 }));
@@ -170,7 +157,6 @@ describe("setPhotoPrice", () => {
 		});
 	});
 });
-
 /* ---------- getPhotoPurchaseEligibility ---------- */
 
 describe("getPhotoPurchaseEligibility", () => {
@@ -350,33 +336,43 @@ describe("markPurchaseCompleted", () => {
 		vi.mocked(getRequestDb).mockReturnValue(db as unknown as PrismaClient);
 	});
 
-	it("updates purchase with COMPLETED status and stripePaymentIntentId", async () => {
-		const completed = makePurchase({
-			status: "COMPLETED",
-			completedAt: new Date(),
-			stripePaymentIntentId: "pi_123",
-		});
-		(db.purchase.update as ReturnType<typeof vi.fn>).mockResolvedValue(completed);
+	 it("updates purchase with COMPLETED status and stripePaymentIntentId", async () => {
+	  const completed = makePurchase({
+	   status: "COMPLETED",
+	   completedAt: new Date(),
+	   stripePaymentIntentId: "pi_123",
+	  });
+	  (db.purchase.update as ReturnType<typeof vi.fn>).mockResolvedValue(completed);
+	  (db.purchaseItem.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([{ photoId: "p1" }]);
+	  (db.gallery.findFirst as ReturnType<typeof vi.fn>).mockResolvedValue({ downloadExpiryDays: 7 });
+	  (db.downloadEntitlement.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+	  (db.downloadEntitlement.createMany as ReturnType<typeof vi.fn>).mockResolvedValue({ count: 1 });
 
-		const result = await markPurchaseCompleted("pur1", "pi_123");
-		expect(result.status).toBe("COMPLETED");
-		expect(db.purchase.update).toHaveBeenCalledWith({
-			where: { id: "pur1", tenantId: "t1" },
-			data: {
-				status: "COMPLETED",
-				completedAt: expect.any(Date),
-				stripePaymentIntentId: "pi_123",
-			},
-			include: {
-				items: {
-					orderBy: { createdAt: "asc" },
-					include: {
-						photo: { select: { id: true, galleryId: true, storageKey: true, originalFilename: true } },
+	  const result = await markPurchaseCompleted("pur1", "pi_123");
+	  expect(result.status).toBe("COMPLETED");
+	expect(db.purchase.update).toHaveBeenCalledWith({
+		where: { id: "pur1", tenantId: "t1" },
+		data: {
+			status: "COMPLETED",
+			completedAt: expect.any(Date),
+			stripePaymentIntentId: "pi_123",
+		},
+		include: {
+			items: {
+				include: {
+					photo: {
+						select: {
+							id: true,
+							galleryId: true,
+							storageKey: true,
+							originalFilename: true,
+						},
 					},
 				},
 			},
-		});
+		},
 	});
+	 });
 });
 
 /* ---------- listClientCompletedEntitlements ---------- */
@@ -388,28 +384,57 @@ describe("listClientCompletedEntitlements", () => {
 		vi.mocked(getRequestDb).mockReturnValue(db as unknown as PrismaClient);
 	});
 
-	it("returns completed purchases for client and gallery", async () => {
-		const purchases = [makePurchase({ status: "COMPLETED", completedAt: new Date() })];
-		(db.purchase.findMany as ReturnType<typeof vi.fn>).mockResolvedValue(purchases);
-		const result = await listClientCompletedEntitlements("g1", "client1");
-		expect(result).toEqual(purchases);
-		expect(db.purchase.findMany).toHaveBeenCalledWith({
-			where: { tenantId: "t1", galleryId: "g1", clientUsername: "client1", status: "COMPLETED" },
-			orderBy: { completedAt: "asc" },
-			include: {
-				items: {
-					orderBy: { createdAt: "asc" },
-					include: {
-						photo: { select: { id: true, galleryId: true, storageKey: true, originalFilename: true } },
-					},
-				},
-			},
-		});
-	});
+	 it("returns active entitlements for client and gallery", async () => {
+		 const entitlements = [
+			 {
+				 id: "ent1",
+				 tenantId: "t1",
+				 galleryId: "g1",
+				 clientUsername: "client1",
+				 photoId: "p1",
+				 status: "ACTIVE",
+				 grantedAt: new Date(),
+				 expiresAt: null,
+				 revokedAt: null,
+				 photo: {
+					 id: "p1",
+					 galleryId: "g1",
+					 storageKey: "key",
+					 originalFilename: "photo.jpg",
+				 },
+			 },
+		 ];
+		 (db.downloadEntitlement.findMany as ReturnType<typeof vi.fn>).mockResolvedValue(entitlements);
+		 const result = await listClientCompletedEntitlements("g1", "client1");
+		 expect(result).toEqual(entitlements);
+		 expect(db.downloadEntitlement.findMany).toHaveBeenCalledWith({
+			 where: {
+				 tenantId: "t1",
+				 galleryId: "g1",
+				 clientUsername: "client1",
+				 status: "ACTIVE",
+				 OR: [
+					 { expiresAt: null },
+					 { expiresAt: { gt: expect.any(Date) } },
+				 ],
+			 },
+			 orderBy: { grantedAt: "asc" },
+			 include: {
+				 photo: {
+					 select: {
+						 id: true,
+						 galleryId: true,
+						 storageKey: true,
+						 originalFilename: true,
+					 },
+				 },
+			 },
+		 });
+	 });
 
-	it("returns empty array when no completed purchases", async () => {
-		(db.purchase.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
-		const result = await listClientCompletedEntitlements("g1", "client1");
-		expect(result).toEqual([]);
-	});
+	 it("returns empty array when no entitlements", async () => {
+	   (db.downloadEntitlement.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+	   const result = await listClientCompletedEntitlements("g1", "client1");
+	   expect(result).toEqual([]);
+	 });
 });

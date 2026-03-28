@@ -1,0 +1,7 @@
+{
+  "commands": [
+    "node -v",
+    "npm -v",
+    "npx prisma -v"
+  ]
+}

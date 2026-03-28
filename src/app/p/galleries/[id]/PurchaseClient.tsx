@@ -55,6 +55,7 @@ function parseCheckout(data: unknown): CheckoutResponse | null {
 
 export default function PurchaseClient({ galleryId, photos, entitledPhotoIds = [] }: Props) {
 	const entitledSet = new Set(entitledPhotoIds);
+	const [downloadError, setDownloadError] = useState<{ [photoId: string]: string }>({});
 	const purchasable = photos.filter(
 		(p): p is PhotoInfo & { priceInCents: number } => typeof p.priceInCents === "number" && p.priceInCents > 0,
 	);
@@ -176,9 +177,36 @@ export default function PurchaseClient({ galleryId, photos, entitledPhotoIds = [
 								{formatCents(photo.priceInCents)} &middot; ID: {photo.id.slice(0, 8)}…
 							</p>
 							{entitled ? (
-								<span className="mt-auto text-xs font-semibold px-2 py-0.5 rounded bg-green-100 text-green-800 text-center">
-									Purchased
-								</span>
+								<>
+									<button
+										type="button"
+										className="mt-auto text-xs font-semibold px-2 py-0.5 rounded bg-green-600 text-white hover:bg-green-700"
+										onClick={async () => {
+											setDownloadError((e) => ({ ...e, [photo.id]: "" }));
+											try {
+												const res = await fetch(`/api/p/galleries/${galleryId}/download/${photo.id}`);
+												if (!res.ok) {
+													const body = await res.json().catch(() => null);
+													setDownloadError((e) => ({ ...e, [photo.id]: body?.error || `Download failed (${res.status})` }));
+													return;
+												}
+												const data = await res.json();
+												if (data?.url) {
+													window.location.href = data.url;
+												} else {
+													setDownloadError((e) => ({ ...e, [photo.id]: "No download URL returned." }));
+												}
+											} catch {
+												setDownloadError((e) => ({ ...e, [photo.id]: "Network error during download." }));
+											}
+										}}
+									>
+										Download
+									</button>
+									{downloadError[photo.id] && (
+										<span className="block text-xs text-red-600 mt-1">{downloadError[photo.id]}</span>
+									)}
+								</>
 							) : (
 								<button
 									type="button"

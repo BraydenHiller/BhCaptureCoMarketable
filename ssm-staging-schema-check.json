@@ -1,0 +1,10 @@
+{
+  "commands": [
+    "export PGPASSWORD='NewTempPass1234'",
+    "export PGSSLMODE=require",
+    "psql -h datastack-staging-databaseb269d8bb-quozjnaozdbv.cz2ac6quymbd.us-east-2.rds.amazonaws.com -U postgres -d bhcaptureco -c \"SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'DownloadEntitlement';\"",
+    "psql -h datastack-staging-databaseb269d8bb-quozjnaozdbv.cz2ac6quymbd.us-east-2.rds.amazonaws.com -U postgres -d bhcaptureco -c \"SELECT typname FROM pg_type WHERE typname = 'DownloadEntitlementStatus';\"",
+    "psql -h datastack-staging-databaseb269d8bb-quozjnaozdbv.cz2ac6quymbd.us-east-2.rds.amazonaws.com -U postgres -d bhcaptureco -c \"SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'Gallery' AND column_name IN ('downloadExpiryDays','previewLowResEnabled');\"",
+    "psql -h datastack-staging-databaseb269d8bb-quozjnaozdbv.cz2ac6quymbd.us-east-2.rds.amazonaws.com -U postgres -d bhcaptureco -c \"SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'PurchaseItem' AND column_name = 'createdAt';\""
+  ]
+}
