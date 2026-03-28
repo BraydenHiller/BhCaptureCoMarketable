@@ -12,7 +12,7 @@ export async function overridePurchaseStatusAction(formData: FormData) {
   const status = formData.get('status') as PurchaseStatus;
   const tenantId = formData.get('tenantId') as string;
   const path = `/admin/tenants/${tenantId}`;
-  await requireMasterAdminSession();
+  console.log("ACTION_ENTRY"); await requireMasterAdminSession();
   if (!purchaseId || !Object.values(PurchaseStatus).includes(status)) {
     throw new Error('INVALID_PURCHASE_STATUS');
   }
@@ -33,4 +33,5 @@ export async function overridePurchaseStatusAction(formData: FormData) {
     redirect(path);
   }
 }
+
 
