@@ -223,42 +223,16 @@ export default async function Page({
 		redirect(path);
 	}
 
-	async function overridePurchaseStatus(formData: FormData) {
-		'use server';
-		await requireMasterAdminSession();
 
-		const purchaseId = formData.get('purchaseId') as string;
-		const raw = formData.get('status') as string;
-
-		if (!purchaseId || !Object.values(PurchaseStatus).includes(raw as PurchaseStatus)) {
-			throw new Error('INVALID_PURCHASE_STATUS');
-		}
-
-		const status = raw as PurchaseStatus;
-		const data: Record<string, unknown> = { status };
-
-		if (status === 'COMPLETED') {
-			const existing = await prisma.purchase.findUnique({
-				where: { id: purchaseId },
-				select: { completedAt: true },
-			});
-			if (!existing?.completedAt) {
-				data.completedAt = new Date();
-			}
-		}
-
-		if (status === 'REFUNDED') {
-			data.refundedAt = new Date();
-		}
-
-		await prisma.purchase.update({
-			where: { id: purchaseId },
-			data,
-		});
-
-		revalidatePath(path);
-		redirect(path);
-	}
+// Page-local wrapper for UI form action
+async function overridePurchaseStatus(formData: FormData) {
+	const purchaseId = formData.get('purchaseId') as string;
+	const raw = formData.get('status') as string;
+	const status = raw as PurchaseStatus;
+	// Use the extracted action for admin override
+	const { overridePurchaseStatusAction } = await import('./overridePurchaseStatusAction');
+	await overridePurchaseStatusAction({ purchaseId, status, path });
+}
 
 	async function forceRemoveTenantDomain(formData: FormData) {
 		'use server';
@@ -577,4 +551,7 @@ export default async function Page({
 			</div>
 		</div>
 	);
+
 }
+
+
