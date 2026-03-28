@@ -1,6 +1,7 @@
 import { requireMasterAdminSession } from '@/lib/auth/requireMasterAdminSession';
 import { prisma } from '@/db/prisma';
 import { notFound, redirect } from 'next/navigation';
+import { overridePurchaseStatusAction } from './overridePurchaseStatusAction';
 import { revalidatePath } from 'next/cache';
 import { validateTenantSlug } from '@/lib/tenantSlug';
 import { BillingStatus, TenantStatus, PurchaseStatus } from '@prisma/client';
@@ -224,16 +225,6 @@ export default async function Page({
 	}
 
 
-// Page-local wrapper for UI form action
-async function overridePurchaseStatus(formData: FormData) {
-        'use server';
-	const purchaseId = formData.get('purchaseId') as string;
-	const raw = formData.get('status') as string;
-	const status = raw as PurchaseStatus;
-	// Use the extracted action for admin override
-	const { overridePurchaseStatusAction } = await import('./overridePurchaseStatusAction');
-	await overridePurchaseStatusAction({ purchaseId, status, path });
-}
 
 	async function forceRemoveTenantDomain(formData: FormData) {
 		'use server';
@@ -470,7 +461,8 @@ async function overridePurchaseStatus(formData: FormData) {
 										<td className="py-1 pr-2">{p._count.items}</td>
 										<td className="py-1 pr-2 text-xs">{p.createdAt.toISOString()}</td>
 										<td className="py-1">
-											<form action={overridePurchaseStatus} className="flex gap-1">
+								<form action={overridePurchaseStatusAction} className="flex gap-1">
+									<input type="hidden" name="tenantId" value={id} />
 												<input type="hidden" name="purchaseId" value={p.id} />
 												<select
 													name="status"

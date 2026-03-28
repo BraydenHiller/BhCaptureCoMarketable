@@ -5,16 +5,12 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { PurchaseStatus } from '@prisma/client';
 
-export async function overridePurchaseStatusAction({
-  purchaseId,
-  status,
-  path
-}: {
-  purchaseId: string;
-  status: PurchaseStatus;
-  path: string;
-}) {
+export async function overridePurchaseStatusAction(formData: FormData) {
   'use server';
+  const purchaseId = formData.get('purchaseId') as string;
+  const status = formData.get('status') as PurchaseStatus;
+  const tenantId = formData.get('tenantId') as string;
+  const path = `/admin/tenants/${tenantId}`;
   await requireMasterAdminSession();
   if (!purchaseId || !Object.values(PurchaseStatus).includes(status)) {
     throw new Error('INVALID_PURCHASE_STATUS');

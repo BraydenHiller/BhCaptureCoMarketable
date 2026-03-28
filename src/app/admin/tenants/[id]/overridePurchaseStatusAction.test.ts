@@ -37,22 +37,22 @@ beforeEach(() => {
 
 describe("overridePurchaseStatusAction", () => {
   it("calls markPurchaseCompleted for COMPLETED", async () => {
-    await overridePurchaseStatusAction({
-      purchaseId: "pid1",
-      status: "COMPLETED",
-      path: "/admin/tenants/tid1"
-    });
+    const fd = new FormData();
+    fd.append('purchaseId', 'pid1');
+    fd.append('status', 'COMPLETED');
+    fd.append('tenantId', 'tid1');
+    await overridePurchaseStatusAction(fd);
     expect(markPurchaseCompleted).toHaveBeenCalledWith("pid1", "admin_override");
     expect(revalidatePath).toHaveBeenCalled();
     expect(redirect).toHaveBeenCalled();
   });
 
   it("calls prisma.purchase.update for REFUNDED", async () => {
-    await overridePurchaseStatusAction({
-      purchaseId: "pid2",
-      status: "REFUNDED",
-      path: "/admin/tenants/tid2"
-    });
+    const fd = new FormData();
+    fd.append('purchaseId', 'pid2');
+    fd.append('status', 'REFUNDED');
+    fd.append('tenantId', 'tid2');
+    await overridePurchaseStatusAction(fd);
     expect(prisma.purchase.update).toHaveBeenCalledWith({
       where: { id: "pid2" },
       data: expect.objectContaining({ status: "REFUNDED", refundedAt: expect.any(Date) }),
@@ -62,11 +62,11 @@ describe("overridePurchaseStatusAction", () => {
   });
 
   it("calls prisma.purchase.update for PENDING", async () => {
-    await overridePurchaseStatusAction({
-      purchaseId: "pid3",
-      status: "PENDING",
-      path: "/admin/tenants/tid3"
-    });
+    const fd = new FormData();
+    fd.append('purchaseId', 'pid3');
+    fd.append('status', 'PENDING');
+    fd.append('tenantId', 'tid3');
+    await overridePurchaseStatusAction(fd);
     expect(prisma.purchase.update).toHaveBeenCalledWith({
       where: { id: "pid3" },
       data: { status: "PENDING" },
