@@ -1,3 +1,5 @@
+'use server';
+
 import { requireMasterAdminSession } from '@/lib/auth/requireMasterAdminSession';
 import { prisma } from '@/db/prisma';
 import { markPurchaseCompleted } from '@/db/purchase';
@@ -6,7 +8,6 @@ import { redirect } from 'next/navigation';
 import { PurchaseStatus } from '@prisma/client';
 
 export async function overridePurchaseStatusAction(formData: FormData) {
-  'use server';
   const purchaseId = formData.get('purchaseId') as string;
   const status = formData.get('status') as PurchaseStatus;
   const tenantId = formData.get('tenantId') as string;

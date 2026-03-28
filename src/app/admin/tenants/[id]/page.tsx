@@ -4,7 +4,7 @@ import { notFound, redirect } from 'next/navigation';
 import { overridePurchaseStatusAction } from './overridePurchaseStatusAction';
 import { revalidatePath } from 'next/cache';
 import { validateTenantSlug } from '@/lib/tenantSlug';
-import { BillingStatus, TenantStatus, PurchaseStatus } from '@prisma/client';
+import { BillingStatus, TenantStatus } from '@prisma/client';
 import Link from 'next/link';
 
 export const dynamic = 'force-dynamic';
