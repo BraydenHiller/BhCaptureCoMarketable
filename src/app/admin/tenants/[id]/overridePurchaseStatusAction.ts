@@ -19,7 +19,7 @@ export async function overridePurchaseStatusAction({
   if (!purchaseId || !Object.values(PurchaseStatus).includes(status)) {
     throw new Error('INVALID_PURCHASE_STATUS');
   }
-  if (status === 'COMPLETED') {
+  console.log("ADMIN_ACTION_TRIGGERED", purchaseId, status); if (status === 'COMPLETED') {
     await markPurchaseCompleted(purchaseId, 'admin_override');
     revalidatePath(path);
     redirect(path);
@@ -36,3 +36,4 @@ export async function overridePurchaseStatusAction({
     redirect(path);
   }
 }
+
